@@ -108,7 +108,7 @@ export async function readVideoEvents(response: Response): Promise<string> {
           // Gradio's simple API sometimes returns null even for quota errors.
           // Do not echo arbitrary upstream exception strings or invent a cause.
           throw new RequestError(
-            'LTX could not complete this request. The free GPU may be unavailable or your daily allowance may be used. Check the official demo, or make a cut with free assets.',
+            'The video service could not complete this request. Your brief is saved; retry later or finish with stock assets.',
             503,
           );
         }

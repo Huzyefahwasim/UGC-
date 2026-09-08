@@ -21,11 +21,14 @@ Higgsfield credentials are obsolete and unused. Keep all keys server-side, never
 - Enter the studio code and submit an unfamiliar product URL with a concrete camera/light preference.
 - Keep the tab visible for finishing. Verify moving footage, three caption beats, music, the GIF, and a working download/share link.
 - Reload and confirm the saved conversation and video remain available.
-- If the free queue rejects the request, verify **Use free assets instead** produces a clearly labeled stock-photo cut.
+- If the free queue rejects the request, verify **Finish with stock assets** produces a clearly labeled stock-photo cut.
+- Check a failed attempt displays allowance/reset information when known. **Check availability** must not create a job; **Retry footage** creates a single new attempt with the saved brief and is disabled while quota is known to be insufficient.
 
 ## Quotas and storage
 
 A free HF account currently gets five GPU minutes/day. This model uses xlarge ZeroGPU at 2× quota consumption. Shared queues and runtime reservations can reject requests before the remaining allowance reaches zero. One server token shares its quota across all app users. No automatic switch to a paid video provider is implemented. [ZeroGPU documentation](https://huggingface.co/docs/hub/spaces-zerogpu).
+
+The current Space reserves 120 GPU seconds for a six-second clip. The server checks the official quota endpoint before submitting. `/api/generation-quota` exposes only availability, remaining/required seconds and reset time; it requires the studio access code in production and is never cached. Failed quota lookups return unknown and do not block on an assumed limit. A retry requires studio access and a signed ticket for a failed job; a replay resolves to the same child job, so it cannot duplicate submission.
 
 Vercel and Blob have their own allowances and billing settings. The studio code protects access, not hosting spend. Use account budget controls and deployment-wide rate limits as appropriate for your audience.
 

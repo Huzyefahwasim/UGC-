@@ -1629,6 +1629,66 @@ h1 span {
   gap: 7px;
   flex-shrink: 0;
 }
+.pending-generation.generation-failed {
+  border-color: #4a5137;
+  background: #20241a;
+}
+.recovery-eyebrow {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--primary);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.quota-note {
+  display: grid;
+  gap: 4px;
+  margin: 14px 0;
+  padding-left: 12px;
+  border-left: 2px solid #798b50;
+  color: #e2e8d6;
+  font-size: 12px;
+}
+.quota-note small {
+  color: #aebd98;
+  font-size: 11px;
+}
+.recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.pending-generation .recovery-secondary {
+  background: #343c28;
+  color: #e2ebd5;
+  border: 1px solid #53623e;
+}
+.pending-generation button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+.availability-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 8px;
+}
+.pending-generation .availability-actions button {
+  background: transparent;
+  color: #c5d3ae;
+  font-size: 11px;
+  padding: 6px 0;
+  width: auto;
+}
+.availability-actions button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.pending-generation .recovery-error {
+  color: #f1c49b;
+}
 @media (max-width: 650px) {
   .header-actions {
     gap: 12px;

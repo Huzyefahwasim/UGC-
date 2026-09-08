@@ -97,9 +97,11 @@ function validPlan(value: unknown): value is VideoPlan {
 export async function createGenerationTicket(
   plan: VideoPlan,
   direction: string,
+  id: string = randomUUID(),
 ): Promise<string> {
   requireStorage();
   const key = keyFor('ticket');
+  if (typeof id !== 'string' || !isVideoId(id)) throw invalidTicket();
   if (
     !validPlan(plan) ||
     typeof direction !== 'string' ||
@@ -109,7 +111,7 @@ export async function createGenerationTicket(
   const permit: GenerationTicket = {
     v: 1,
     purpose: PURPOSE,
-    id: randomUUID(),
+    id,
     plan,
     direction: direction.trim(),
     expires: Date.now() + LIFETIME,

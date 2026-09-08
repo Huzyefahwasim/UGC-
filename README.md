@@ -26,7 +26,8 @@ No Higgsfield credentials are used. Anonymous LTX access works within a small sh
 - LTX generates one continuous six-second vertical shot. It does not generate speech, music, captions or GIFs.
 - The browser composites the footage with animated captions, a beat-reactive Google Noto GIF, music and a product CTA, then saves the export.
 - Keep the tab visible during the six-second finishing step. A failed finish can reuse the saved footage without another GPU submission.
-- If LTX rejects a request, explicitly choose **Use free assets instead** to render an eight-second stock-photo cut. This result is clearly labeled.
+- If LTX rejects a request, explicitly choose **Finish with stock assets** to render an eight-second stock-photo cut. This result is clearly labeled.
+- Failed jobs offer **Retry footage**, preserving the exact brief. This starts one new attempt; repeated clicks or lost responses reuse that same retry. **Check availability** only reads the allowance and never starts a video.
 - Conversation and unfinished jobs survive reloads in the current tab's session.
 
 See [DIRECTION.md](DIRECTION.md) for prompt construction and [ASSETS.md](ASSETS.md) for attribution.
@@ -61,6 +62,8 @@ Keep keys server-side and out of Git. Never prefix secrets with `NEXT_PUBLIC_`. 
 Next.js App Router, React and browser Canvas/MediaRecorder. Public product URLs are resolved and checked against private networks; redirects and HTML reads are bounded. The model receives a compact visual description, not raw page instructions.
 
 The server makes one named Gradio submission and holds one event stream until completion, bounded to four minutes. The route allows 300 seconds on Vercel. Atomic immutable claims prevent duplicate GPU submissions. Completed footage references are encrypted before saving; retries read the saved result rather than reopening a consumed Gradio stream.
+
+Before a new submission, the server checks the authenticated account's GPU seconds and run allowance. This Space reserves **120 GPU seconds** for clips up to seven seconds, including the app's six-second shot. A remainder below 120 cannot start a clip. A known exhausted limit stops submission and the recovery card shows the provider's reset in the viewer's timezone. Missing credentials or an unavailable quota response leave availability unknown; the app does not invent a quota error. Shortening a six-second shot to five seconds would not reduce this reservation. [Quota API](https://huggingface.co/docs/hub/en/spaces-api-endpoints#zerogpu-spaces).
 
 Free Hugging Face accounts currently receive **five GPU minutes/day**; anonymous access has a smaller shared allowance. This Space uses xlarge GPU hardware at **2× quota consumption**, with shared queues. One server token shares its allowance among all users. This is processing time, not minutes of finished video. [Official quotas](https://huggingface.co/docs/hub/spaces-zerogpu).
 

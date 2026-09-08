@@ -2,6 +2,15 @@
 
 > Deployment status: the user reported deleting the former ChatGPT Site. URLs in the earlier evidence below are historical and are not the current deliverable. The app is being prepared for user-managed Vercel hosting; no Vercel production deployment has been performed.
 
+## Quota diagnosis and failed-job recovery — 2026-09-08
+
+- Investigated the reported Cherry Tree Solutions failure. The token is configured. The official authenticated read-only quota endpoint returned 118.182584 GPU seconds; the Space reserves 120 seconds for clips up to seven seconds. Reported reset: September 9, about 21:16 Pakistan time. This establishes insufficient reservation allowance, rather than guessing from Gradio's empty error event.
+- Added bounded quota inspection before provider submission, protected/no-store quota status, localized reset information, and an explicit saved-brief retry. A signed failed parent deterministically maps to one child, preserving the exact plan and preventing duplicate GPU work after a lost response. Active/completed jobs cannot start another attempt through this endpoint.
+- Browser test of the same public URL: one transient Gemini failure, then a successful brief. Job 13e0030e-aa2d-4562-8333-9225afc3111a stopped at quota preflight, before provider submission. The recovery card showed 118/120 seconds and the localized reset; Retry footage was disabled. Checking availability and reloading preserved the failed brief without resubmission.
+- Chose the stock option in an isolated test conversation. Normal fallback/compositor/upload produced /api/videos/91bf9ab5-8608-4fbc-b5bb-f68c14ac8bd4, clearly labeled as a stock-asset cut. FFprobe: H.264/AAC, 720 × 1280, 8.020533 seconds, 3,268,919 bytes. Browser inspection confirmed captions, a relevant animated target reaction, and download/open links. Local artifact: .artifacts/cherry-stock-recovery.mp4.
+- 122 automated tests, lint, TypeScript and production build passed. Tests cover the exact 120-second boundary, depleted runs, unknown/malformed quota, safe errors, studio authorization, repeated/concurrent retry IDs, signed brief preservation and rejection of active/completed/tampered/expired parents. Production output contains the two intended endpoints and no QA routes. Twelve production traces contained no .env, .data, .agent-logs or .artifacts entries.
+- AI footage cannot be retested until the free allowance recovers. No new video provider submission, paid-provider switch, billing change or deployment was performed for this fix.
+
 ## Context, reactions and studio polish — 2026-09-08
 
 - Added 11 allowlisted Google Noto GIF reactions selected from product use context and tone. Calm mental-wellness briefs reject inappropriate shocked/party reactions. Explicit emoji revisions retain unrelated captions and scene details.

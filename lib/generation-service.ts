@@ -4,6 +4,7 @@ import {
   recordGeneration,
 } from './generation-jobs.ts';
 import { submitVideo } from './ltx.ts';
+import { requireGenerationQuota } from './generation-quota.ts';
 import { RequestError } from './server.ts';
 import type { VideoPlan } from './types.ts';
 
@@ -20,7 +21,10 @@ const defaults: Dependencies = {
   read: readGeneration,
   claim: claimGeneration,
   record: recordGeneration,
-  submit: submitVideo,
+  submit: async (plan, direction) => {
+    await requireGenerationQuota();
+    return submitVideo(plan, direction);
+  },
 };
 
 const UNCONFIRMED =

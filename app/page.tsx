@@ -23,6 +23,7 @@ import type { VideoPlan } from '@/lib/types';
 import { renderVideo } from '@/lib/render';
 import { loadFootage } from '@/lib/load-footage';
 import { chooseReaction, reactionById } from '@/lib/reactions';
+import type { GenerationQuota } from '@/lib/generation-quota';
 
 function planReaction(plan: VideoPlan) {
   return reactionById(
@@ -37,7 +38,12 @@ type GenerationJob = {
   prompt: string;
   startedAt: number;
   recoveryNote?: string;
+  failed?: boolean;
 };
+function preserveJobRecovery(id: string, recoveryNote: string) {
+  return (current: GenerationJob | null) =>
+    current?.id === id ? { ...current, recoveryNote } : current;
+}
 type Message = {
   id: string;
   role: 'user' | 'assistant';
@@ -67,11 +73,73 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
   const [activePlan, setActivePlan] = useState<VideoPlan | null>(null);
   const [notice, setNotice] = useState('');
+  const [recoveryActionError, setRecoveryActionError] = useState('');
+  const [quota, setQuota] = useState<GenerationQuota>({ known: false });
+  const [quotaLoading, setQuotaLoading] = useState(false);
   const busyRef = useRef(false);
   const end = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const cancel = useRef<AbortController | null>(null);
   const audio = useRef<AudioContext | null>(null);
+  const pendingId = pendingJob?.id;
+  const pendingTicket = pendingJob?.ticket;
+  const quotaBlocked = quota.known && !quota.available;
+  const quotaReset =
+    quota.known && quota.resetAt
+      ? new Date(quota.resetAt).toLocaleString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          timeZoneName: 'short',
+        })
+      : '';
+  async function refreshQuota() {
+    setQuotaLoading(true);
+    try {
+      const response = await fetch('/api/generation-quota', {
+        headers: { 'X-Studio-Access': accessCode },
+        signal: AbortSignal.timeout(10000),
+        cache: 'no-store',
+      });
+      setQuota(response.ok ? await response.json() : { known: false });
+    } catch {
+      setQuota({ known: false });
+    } finally {
+      setQuotaLoading(false);
+    }
+  }
+  useEffect(() => {
+    if (!pendingId || !pendingTicket) return;
+    const control = new AbortController();
+    // Restore terminal state for older saved chats without resubmitting a job.
+    void fetch('/api/generations/' + pendingId, {
+      headers: { 'X-Generation-Ticket': pendingTicket },
+      signal: control.signal,
+      cache: 'no-store',
+    })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const result = await response.json();
+        if (result.status === 'failed')
+          setPendingJob((current) =>
+            current?.id === pendingId
+              ? { ...current, failed: true, recoveryNote: result.error }
+              : current,
+          );
+      })
+      .catch(() => {});
+    void fetch('/api/generation-quota', {
+      headers: { 'X-Studio-Access': accessCode },
+      signal: control.signal,
+      cache: 'no-store',
+    })
+      .then(async (response) => {
+        if (response.ok) setQuota(await response.json());
+      })
+      .catch(() => {});
+    return () => control.abort();
+  }, [pendingId, pendingTicket, accessCode]);
   function enableAudio() {
     if (typeof AudioContext === 'undefined') return;
     if (!audio.current || audio.current.state === 'closed')
@@ -161,7 +229,9 @@ export default function Home() {
     if (!pendingJob || busyRef.current) return;
     enableAudio();
     setNotice('');
+    setRecoveryActionError('');
     setStatus('Choosing the assets for your cut…');
+    setActivePlan(pendingJob.plan);
     busyRef.current = true;
     setBusy(true);
     const controller = new AbortController();
@@ -179,9 +249,10 @@ export default function Home() {
       if (!response.ok) throw new Error(result.error);
       await finishCut(pendingJob, result.renderTicket, controller.signal);
     } catch (error) {
-      setNotice(
-        error instanceof Error ? error.message : 'Could not finish the cut.',
-      );
+      const message =
+        error instanceof Error ? error.message : 'Could not finish the cut.';
+      setNotice(message);
+      setRecoveryActionError(message);
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -356,8 +427,9 @@ export default function Home() {
           const note =
             result.error ||
             'The footage could not be generated. You can still finish this brief with stock assets.';
-          setPendingJob({ ...job, recoveryNote: note });
+          setPendingJob({ ...job, recoveryNote: note, failed: true });
           setNotice(note);
+          void refreshQuota();
           return;
         }
         if (result.status === 'not_started') {
@@ -444,6 +516,7 @@ export default function Home() {
   }
   async function resumeGeneration() {
     if (!pendingJob || busyRef.current) return;
+    setRecoveryActionError('');
     enableAudio();
     busyRef.current = true;
     setBusy(true);
@@ -458,7 +531,69 @@ export default function Home() {
           ? error.message
           : 'Please resume in a moment.';
       setNotice(recoveryNote);
-      setPendingJob({ ...pendingJob, recoveryNote });
+      setPendingJob(preserveJobRecovery(pendingJob.id, recoveryNote));
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+      cancel.current = null;
+      void audio.current?.close().catch(() => {});
+    }
+  }
+  async function retryGeneration() {
+    if (!pendingJob?.failed || busyRef.current || quotaBlocked) return;
+    setRecoveryActionError('');
+    enableAudio();
+    busyRef.current = true;
+    setBusy(true);
+    setNotice('');
+    setStatus('Preparing a fresh attempt with your saved brief…');
+    setActivePlan(pendingJob.plan);
+    const controller = new AbortController();
+    cancel.current = controller;
+    let currentJob = pendingJob;
+    try {
+      const response = await fetch(`/api/generations/${pendingJob.id}/retry`, {
+        method: 'POST',
+        headers: {
+          'X-Generation-Ticket': pendingJob.ticket,
+          'X-Studio-Access': accessCode,
+        },
+        signal: AbortSignal.any([
+          controller.signal,
+          AbortSignal.timeout(15000),
+        ]),
+      });
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(result.error || 'Could not prepare a retry.');
+      currentJob = {
+        ...pendingJob,
+        id: result.id,
+        ticket: result.ticket,
+        // eslint-disable-next-line react/react-compiler -- Timestamp created by the Retry event, not by rendering.
+        startedAt: Date.now(),
+        failed: false,
+        recoveryNote: undefined,
+      };
+      setPendingJob(currentJob);
+      try {
+        const saved = JSON.parse(sessionStorage.getItem('cut-chat-v1') || '{}');
+        sessionStorage.setItem(
+          'cut-chat-v1',
+          JSON.stringify({ ...saved, pendingJob: currentJob }),
+        );
+      } catch {}
+      await runGeneration(currentJob, controller);
+    } catch (error) {
+      const recoveryNote = controller.signal.aborted
+        ? 'Stopped checking. The attempt may still be running.'
+        : error instanceof Error
+          ? error.message
+          : 'Could not start the next attempt.';
+      setNotice(recoveryNote);
+      setRecoveryActionError(recoveryNote);
+      setPendingJob(preserveJobRecovery(currentJob.id, recoveryNote));
+      void refreshQuota();
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -476,6 +611,7 @@ export default function Home() {
     setActivePlan(null);
     setStatus('Reading your brief…');
     setNotice('');
+    setRecoveryActionError('');
     setJobPhase('');
     const history = [
       ...messages,
@@ -544,7 +680,7 @@ export default function Home() {
           : 'Could not complete this request.';
       if (submittedJob) {
         setNotice(errorText);
-        setPendingJob({ ...submittedJob, recoveryNote: errorText });
+        setPendingJob(preserveJobRecovery(submittedJob.id, errorText));
       } else
         setMessages([
           ...history,
@@ -946,24 +1082,95 @@ export default function Home() {
       </section>
       <div className="composer-dock">
         {pendingJob && !busy && (
-          <div className="pending-generation">
+          <div
+            className={`pending-generation${pendingJob.failed ? ' generation-failed' : ''}`}
+            aria-live="polite"
+          >
             <div>
+              {pendingJob.failed && (
+                <span className="recovery-eyebrow">Your brief is saved</span>
+              )}
               <strong>{pendingJob.plan.product}</strong>
               <p>
-                {notice ||
-                  pendingJob.recoveryNote ||
-                  status ||
-                  'Your generation is saved. Resume to check for the result.'}
+                {pendingJob.failed
+                  ? quotaBlocked
+                    ? 'The free video allowance is too low to start another clip. You can still finish this cut with stock assets.'
+                    : 'The footage service couldn’t finish this attempt. Try again with the same brief, or finish with stock assets.'
+                  : notice ||
+                    pendingJob.recoveryNote ||
+                    status ||
+                    'Your generation is saved. Resume to check for the result.'}
               </p>
-              <button
-                type="button"
-                className="retry"
-                onClick={() => void finishWithFreeAssets()}
-              >
-                Finish with stock assets
-              </button>
+              {pendingJob.failed && quotaBlocked && (
+                <div className="quota-note">
+                  <span>
+                    {quotaReset
+                      ? `Allowance resets ${quotaReset}`
+                      : 'Check again later for availability.'}
+                  </span>
+                  {quota.known && quota.reason === 'gpu' && (
+                    <small>
+                      {Math.floor(quota.remainingSeconds)} seconds left ·{' '}
+                      {quota.requiredSeconds} required to start
+                    </small>
+                  )}
+                </div>
+              )}
+              {pendingJob.failed && recoveryActionError && (
+                <p className="recovery-error" role="alert">
+                  {recoveryActionError}
+                </p>
+              )}
+              <div className="recovery-actions">
+                <button
+                  type="button"
+                  onClick={() => void finishWithFreeAssets()}
+                >
+                  <Clapperboard size={14} /> Finish with stock assets
+                </button>
+                {pendingJob.failed && (
+                  <button
+                    type="button"
+                    className="recovery-secondary"
+                    onClick={() => void retryGeneration()}
+                    disabled={quotaBlocked || quotaLoading}
+                  >
+                    <RotateCcw size={14} /> Retry footage
+                  </button>
+                )}
+              </div>
+              {pendingJob.failed && (
+                <div className="availability-actions">
+                  <button
+                    type="button"
+                    onClick={() => void refreshQuota()}
+                    disabled={quotaLoading}
+                  >
+                    {quotaLoading
+                      ? 'Checking availability…'
+                      : 'Check availability'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraft(pendingJob.prompt || pendingJob.plan.url);
+                      setPendingJob(null);
+                      setNotice('');
+                      setStatus('');
+                      requestAnimationFrame(() => input.current?.focus());
+                    }}
+                  >
+                    Edit brief
+                  </button>
+                </div>
+              )}
               <details className="tracking-options">
-                <summary>Recovery options</summary>
+                <summary>
+                  {pendingJob.failed
+                    ? 'About this attempt'
+                    : 'Recovery options'}
+                </summary>
+                {pendingJob.failed && <p>{pendingJob.recoveryNote}</p>}
                 <a
                   href="https://huggingface.co/spaces/Lightricks/ltx-video-distilled"
                   target="_blank"
@@ -972,34 +1179,38 @@ export default function Home() {
                   Check video service <ArrowUpRight size={12} />
                 </a>
                 <p>
-                  Closing tracking does not stop an active request. The official
-                  demo shows availability; it does not hold this app’s job
-                  history.
+                  {pendingJob.failed
+                    ? 'Retry footage starts a new attempt using your video allowance. Checking availability does not start a generation. Stock assets use photos, captions, music and a GIF.'
+                    : 'Closing tracking does not stop an active request. The official demo shows availability; it does not hold this app’s job history.'}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMessages((items) => [
-                      ...items,
-                      {
-                        id: crypto.randomUUID(),
-                        role: 'assistant',
-                        text: `Tracking closed for ${pendingJob.plan.product}. ${pendingJob.recoveryNote || 'You can start a new cut when you are ready.'}`,
-                      },
-                    ]);
-                    setPendingJob(null);
-                    setNotice('');
-                    setStatus('');
-                  }}
-                >
-                  Close tracking
-                </button>
+                {!pendingJob.failed && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMessages((items) => [
+                        ...items,
+                        {
+                          id: crypto.randomUUID(),
+                          role: 'assistant',
+                          text: `Tracking closed for ${pendingJob.plan.product}. ${pendingJob.recoveryNote || 'You can start a new cut when you are ready.'}`,
+                        },
+                      ]);
+                      setPendingJob(null);
+                      setNotice('');
+                      setStatus('');
+                    }}
+                  >
+                    Close tracking
+                  </button>
+                )}
               </details>
             </div>
-            <button type="button" onClick={() => void resumeGeneration()}>
-              <RotateCcw size={14} />
-              Check this cut
-            </button>
+            {!pendingJob.failed && (
+              <button type="button" onClick={() => void resumeGeneration()}>
+                <RotateCcw size={14} />
+                Check this cut
+              </button>
+            )}
           </div>
         )}
         <div className="composer-inner">
@@ -1082,7 +1293,7 @@ export default function Home() {
         </div>
       </div>
       <output className="sr-only">
-        {notice || (copied ? 'Video link copied' : '')}
+        {(!pendingJob && notice) || (copied ? 'Video link copied' : '')}
       </output>
     </main>
   );
