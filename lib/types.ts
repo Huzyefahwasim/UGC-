@@ -13,6 +13,7 @@ export type VideoPlan = {
   captions: [string, string, string];
   background: string;
   gif: string;
+  reaction?: import('./reactions').ReactionId;
   audio: string;
   accent: string;
   shot?: import('./video-direction').ShotDirection;

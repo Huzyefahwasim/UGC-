@@ -13,7 +13,6 @@ import {
   Sparkles,
   Link2,
   Volume2,
-  CircleHelp,
   X,
   Clapperboard,
   MonitorPlay,
@@ -23,6 +22,14 @@ import { StudioWelcome } from './studio-welcome';
 import type { VideoPlan } from '@/lib/types';
 import { renderVideo } from '@/lib/render';
 import { loadFootage } from '@/lib/load-footage';
+import { chooseReaction, reactionById } from '@/lib/reactions';
+
+function planReaction(plan: VideoPlan) {
+  return reactionById(
+    plan.reaction ||
+      chooseReaction(`${plan.product} ${plan.description}`, plan.category),
+  );
+}
 type GenerationJob = {
   id: string;
   ticket: string;
@@ -58,7 +65,6 @@ export default function Home() {
   const [jobPhase, setJobPhase] = useState('');
   const [copied, setCopied] = useState('');
   const [hydrated, setHydrated] = useState(false);
-  const [aiReady, setAiReady] = useState<boolean | null>(null);
   const [activePlan, setActivePlan] = useState<VideoPlan | null>(null);
   const [notice, setNotice] = useState('');
   const busyRef = useRef(false);
@@ -130,7 +136,7 @@ export default function Home() {
         {
           id: crypto.randomUUID(),
           role: 'assistant',
-          text: `Your ${footageUrl ? 'LTX' : 'free-asset'} cut for ${job.plan.product} is ready.${local ? ' Online saving failed; download this copy before leaving.' : ' Play it with sound on.'}`,
+          text: `${planReaction(job.plan).emoji} Your ${footageUrl ? '' : 'stock-asset '}cut for ${job.plan.product} is ready.${local ? ' Online saving failed; download this copy before leaving.' : ' Sound on for the full effect.'}`,
           video: {
             url,
             plan: finalPlan,
@@ -155,7 +161,7 @@ export default function Home() {
     if (!pendingJob || busyRef.current) return;
     enableAudio();
     setNotice('');
-    setStatus('Preparing your free-asset cut…');
+    setStatus('Choosing the assets for your cut…');
     busyRef.current = true;
     setBusy(true);
     const controller = new AbortController();
@@ -211,7 +217,6 @@ export default function Home() {
     fetch('/api/health')
       .then((r) => r.json())
       .then((data) => {
-        setAiReady(!!data.aiConfigured);
         setGenerationReady(!!data.generationConfigured);
         setAccessRequired(!!data.generationAccessRequired);
       })
@@ -309,7 +314,7 @@ export default function Home() {
   async function watchGeneration(job: GenerationJob, signal: AbortSignal) {
     setActivePlan(job.plan);
     setJobPhase('queued');
-    setStatus('Your video is in the free LTX queue…');
+    setStatus('Your shot is waiting to be created…');
     // eslint-disable-next-line react/react-compiler -- This clock is read in an async event handler, never during render.
     const deadline = Date.now() + 20 * 60 * 1000;
     let failures = 0;
@@ -333,7 +338,7 @@ export default function Home() {
                 id: crypto.randomUUID(),
                 role: 'assistant',
                 error: true,
-                text: 'This generation session expired or belongs to the previous engine. Start a new LTX cut.',
+                text: 'This generation session has expired. Start a new cut to continue.',
               },
             ]);
             return;
@@ -350,7 +355,7 @@ export default function Home() {
         if (['failed', 'nsfw', 'cancelled'].includes(result.status)) {
           const note =
             result.error ||
-            'LTX could not complete the footage. You can finish this brief with free assets.';
+            'The footage could not be generated. You can still finish this brief with stock assets.';
           setPendingJob({ ...job, recoveryNote: note });
           setNotice(note);
           return;
@@ -367,16 +372,16 @@ export default function Home() {
           Date.now() - job.startedAt > 330000
         ) {
           setStatus(
-            'The LTX request did not finish in time. Use free assets, or close tracking and try a new cut later.',
+            'The video did not finish in time. Use stock assets, or close this request and try a new cut later.',
           );
           return;
         }
         setStatus(
           result.status === 'in_progress'
-            ? 'LTX is generating your directed footage…'
+            ? 'Bringing your scene to life…'
             : result.status === 'submitting'
-              ? 'LTX is generating your shot. Shared GPU queues can take a few minutes…'
-              : 'Your video is in the free LTX queue…',
+              ? 'Creating your footage. This can take a few minutes…'
+              : 'Your shot is waiting to be created…',
         );
       } catch (error) {
         if (signal.aborted || finishing) throw error;
@@ -409,7 +414,7 @@ export default function Home() {
   ) {
     setActivePlan(job.plan);
     setJobPhase('queued');
-    setStatus('Generating your directed shot on the free LTX GPU…');
+    setStatus('Bringing your scene to life…');
     const response = await fetch('/api/generations', {
       method: 'POST',
       headers: {
@@ -428,7 +433,7 @@ export default function Home() {
             id: crypto.randomUUID(),
             role: 'assistant',
             error: true,
-            text: 'This generation session expired or belongs to the previous engine. Start a new LTX cut.',
+            text: 'This generation session has expired. Start a new cut to continue.',
           },
         ]);
         return;
@@ -600,7 +605,7 @@ export default function Home() {
           cut<span className="brand-dot">.</span>
         </button>
         <span className="header-note">
-          <Clapperboard size={14} /> UGC Studio
+          <Clapperboard size={14} /> Creator studio
         </span>
         <div className="header-actions">
           {accessRequired && (
@@ -617,25 +622,10 @@ export default function Home() {
                   placeholder="Enter your studio code"
                 />
                 <small>
-                  Protects this studio’s limited free GPU allowance.
+                  Enter the code shared by the owner of this studio.
                 </small>
               </div>
             </details>
-          )}
-          {generationReady !== null && (
-            <span
-              className={`mode-badge ${generationReady ? 'connected' : ''}`}
-              title={
-                generationReady
-                  ? aiReady
-                    ? 'LTX video and AI chat configured'
-                    : 'LTX video with a built-in shot planner; AI chat is optional'
-                  : 'Configure the signing secret and check the optional Hugging Face token'
-              }
-            >
-              <span />
-              {generationReady ? 'LTX · free demo' : 'LTX needs setup'}
-            </span>
           )}
           <button
             className="new-chat"
@@ -667,6 +657,12 @@ export default function Home() {
         )}
         {messages.length > 0 && (
           <h1 className="sr-only">Your video creation chat</h1>
+        )}
+        {generationReady === false && (
+          <output className="setup-notice">
+            Video generation needs a connection. Ask the studio owner to finish
+            setup; you can still work on your brief here.
+          </output>
         )}
         <div
           className="messages"
@@ -702,7 +698,7 @@ export default function Home() {
                 {message.video && (
                   <div className="video-card">
                     <div className="video-wrap">
-                      {/* eslint-disable-next-line jsx-a11y/media-has-caption -- The provider supplies native dialogue without a transcript; do not mislabel its audio with the legacy music-only captions. */}
+                      {/* eslint-disable-next-line jsx-a11y/media-has-caption -- Legacy Higgsfield videos may contain dialogue without a transcript. LTX cuts include a music caption track. */}
                       <video
                         controls
                         playsInline
@@ -711,7 +707,6 @@ export default function Home() {
                         poster={message.video.poster}
                         aria-label={`${message.video.plan.product} marketing video`}
                       >
-                        {/* LTX creates native dialogue; legacy music captions do not describe it. */}
                         {message.video.provider !== 'higgsfield' && (
                           <track
                             kind="captions"
@@ -723,16 +718,16 @@ export default function Home() {
                       </video>
                       <span className="video-badge">
                         {message.video.provider === 'ltx'
-                          ? 'LTX · 6 SEC'
+                          ? '6 SEC'
                           : message.video.provider === 'higgsfield'
-                            ? 'HIGGSFIELD'
+                            ? 'VIDEO'
                             : '8 SEC'}{' '}
                         <span>•</span> 9:16
                       </span>
                     </div>
                     <div className="video-info">
                       <span className="cut-label">
-                        <Clapperboard size={13} /> YOUR FINISHED CUT
+                        <Clapperboard size={13} /> YOUR CUT
                       </span>
                       <span className="ready">
                         <Check size={14} />{' '}
@@ -742,14 +737,21 @@ export default function Home() {
                       </span>
                       <h2>{message.video.plan.product}</h2>
                       <p>
-                        <Volume2 size={14} /> 720p vertical · Sound on
+                        <Volume2 size={14} /> Made for the feed. Best with
+                        sound.
                       </p>
                       <div className="caption-preview">
-                        <span>CREATIVE DIRECTION</span>
+                        <span>THE HOOK</span>
                         <blockquote>
                           “{message.video.plan.captions[0]}”
                         </blockquote>
                       </div>
+                      <span className="reaction-tag">
+                        <span aria-hidden="true">
+                          {planReaction(message.video.plan).emoji}
+                        </span>
+                        {planReaction(message.video.plan).label}
+                      </span>
                       <div className="video-actions">
                         <a
                           className="download"
@@ -795,26 +797,20 @@ export default function Home() {
                           Open video <ArrowUpRight size={13} />
                         </a>
                       )}
-                      {message.video.provider === 'higgsfield' && (
-                        <p className="provider-note">
-                          AI-generated · Veo 3.1 Fast
-                          <br />
-                          Download to keep. Provider links are temporary.
-                        </p>
-                      )}
-                      {message.video.provider === 'ltx' && (
-                        <p className="provider-note">
-                          AI-generated footage · LTX-Video 0.9.8
-                          <br />
-                          Animated captions, music and GIF added by Cut.
-                        </p>
-                      )}
                       <details>
-                        <summary>
-                          {message.video.provider === 'higgsfield'
-                            ? 'The creative brief'
-                            : 'What’s in this cut'}
-                        </summary>
+                        <summary>Creative brief & credits</summary>
+                        {message.video.provider === 'higgsfield' && (
+                          <p className="provider-note">
+                            AI-generated footage · Veo 3.1 Fast. Download to
+                            keep; provider links are temporary.
+                          </p>
+                        )}
+                        {message.video.provider === 'ltx' && (
+                          <p className="provider-note">
+                            AI-generated footage · LTX-Video 0.9.8. Cut adds the
+                            animated captions, music and reaction GIF.
+                          </p>
+                        )}
                         <p>{message.video.plan.description}</p>
                         {message.video.plan.shot && (
                           <p>
@@ -886,12 +882,24 @@ export default function Home() {
                 {activePlan && (
                   <div className="render-studio">
                     <div className="generation-brief">
-                      <Clapperboard size={26} />
+                      <span className="generation-symbol" aria-hidden="true">
+                        {planReaction(activePlan).emoji}
+                      </span>
                       <div>
                         <strong>{activePlan.product}</strong>
-                        <span>LTX-Video · 6 sec · 9:16 · Directed footage</span>
+                        <span>Your next six-second story</span>
                       </div>
+                      <span className="generation-wave" aria-hidden="true">
+                        <i />
+                        <i />
+                        <i />
+                        <i />
+                        <i />
+                      </span>
                     </div>
+                    <blockquote className="generation-hook">
+                      “{activePlan.captions[0]}”
+                    </blockquote>
                     <div
                       className="render-stages"
                       aria-label="Generation stages"
@@ -908,19 +916,26 @@ export default function Home() {
                         }
                       >
                         <WandSparkles size={14} />
-                        Queue
+                        Create
                       </span>
                       <span
                         className={jobPhase === 'finishing' ? 'active' : ''}
                       >
                         <MonitorPlay size={14} />
-                        Finish
+                        Edit & finish
                       </span>
                     </div>
-                    <span className="render-note">
-                      {activePlan.shot?.action} Keep this tab visible while Cut
-                      adds captions, music and reactions.
-                    </span>
+                    {activePlan.shot?.action && (
+                      <p className="generation-direction">
+                        {activePlan.shot.action}
+                      </p>
+                    )}
+                    {jobPhase === 'finishing' && (
+                      <span className="render-note">
+                        Keep this tab visible while we add the finishing
+                        touches.
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -945,7 +960,7 @@ export default function Home() {
                 className="retry"
                 onClick={() => void finishWithFreeAssets()}
               >
-                Use free assets instead
+                Finish with stock assets
               </button>
               <details className="tracking-options">
                 <summary>Recovery options</summary>
@@ -954,7 +969,7 @@ export default function Home() {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Check LTX availability <ArrowUpRight size={12} />
+                  Check video service <ArrowUpRight size={12} />
                 </a>
                 <p>
                   Closing tracking does not stop an active request. The official
@@ -983,35 +998,11 @@ export default function Home() {
             </div>
             <button type="button" onClick={() => void resumeGeneration()}>
               <RotateCcw size={14} />
-              Resume generation
+              Check this cut
             </button>
           </div>
         )}
         <div className="composer-inner">
-          {!messages.length && (
-            <div className="suggestions">
-              <button
-                onClick={() =>
-                  send(
-                    "I'm building CalAI, a calorie-tracking app. Here's the site: calai.app",
-                  )
-                }
-              >
-                <Link2 size={14} /> Try calai.app <ArrowUpRight size={13} />
-              </button>
-              <button
-                onClick={() => {
-                  setDraft("I'm building ");
-                  input.current?.focus();
-                }}
-              >
-                <Plus size={14} /> My product
-              </button>
-              <button onClick={() => send('What can you do?')}>
-                <CircleHelp size={14} /> What can you do?
-              </button>
-            </div>
-          )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -1021,7 +1012,7 @@ export default function Home() {
           >
             {!messages.length && (
               <div className="composer-label">
-                <Link2 size={14} /> START WITH YOUR PRODUCT
+                <Link2 size={14} /> YOUR PRODUCT, YOUR DIRECTION
               </div>
             )}
             <label className="sr-only" htmlFor="message">
@@ -1034,7 +1025,11 @@ export default function Home() {
               maxLength={2400}
               disabled={!!pendingJob}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Paste a product link. Tell us the vibe."
+              placeholder={
+                messages.length
+                  ? 'A new idea? A different take?'
+                  : 'Paste your product link. What should it feel like?'
+              }
               rows={1}
               onKeyDown={(e) => {
                 if (
@@ -1050,7 +1045,11 @@ export default function Home() {
             <div className="composer-bottom">
               <span>
                 <span className="status-dot" />{' '}
-                {busy ? 'Creating your cut' : '6 sec · 9:16 · LTX-Video'}
+                {busy
+                  ? activePlan
+                    ? 'Creating your cut'
+                    : 'Thinking'
+                  : 'Short. Vertical. Yours.'}
               </span>
               {busy ? (
                 <button
@@ -1068,16 +1067,16 @@ export default function Home() {
                   disabled={!draft.trim() || !!pendingJob}
                   aria-label="Send message"
                 >
-                  <span>Let’s create</span>
+                  <span>{messages.length ? 'Send' : 'Create a cut'}</span>
                   <ArrowUp size={18} />
                 </button>
               )}
             </div>
           </form>
           <div className="below-composer">
-            <span>LTX-Video · Free daily GPU allowance · Shared queue</span>
             <span>
-              Enter to send <i>·</i> Shift + Enter for a new line
+              <kbd>Enter</kbd> to send <i>·</i> <kbd>Shift + Enter</kbd> for a
+              new line
             </span>
           </div>
         </div>

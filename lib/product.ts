@@ -1,4 +1,9 @@
 import type { Category, VideoPlan } from './types';
+import {
+  chooseReaction,
+  reactionById,
+  soundtrackForReaction,
+} from './reactions.ts';
 export const categories: Category[] = [
   'food',
   'fitness',
@@ -129,12 +134,12 @@ export function makePlan(
   captions?: string[],
 ): VideoPlan {
   const config = {
-    food: { bg: 'food', gif: 'heart-eyes', accent: '#dbfa88' },
-    fitness: { bg: 'fitness', gif: 'muscle', accent: '#d9fa74' },
-    beauty: { bg: 'beauty', gif: 'heart-eyes', accent: '#ffc4c9' },
-    travel: { bg: 'travel', gif: 'party', accent: '#b0eff5' },
-    productivity: { bg: 'productivity', gif: 'mind-blown', accent: '#e8f7a3' },
-    general: { bg: 'productivity', gif: 'party', accent: '#fedbac' },
+    food: { bg: 'food', accent: '#dbfa88' },
+    fitness: { bg: 'fitness', accent: '#d9fa74' },
+    beauty: { bg: 'beauty', accent: '#ffc4c9' },
+    travel: { bg: 'travel', accent: '#b0eff5' },
+    productivity: { bg: 'productivity', accent: '#e8f7a3' },
+    general: { bg: 'productivity', accent: '#fedbac' },
   }[category];
   const defaultCaptions = [
     `You just found ${product}`,
@@ -148,6 +153,8 @@ export function makePlan(
       : 'Your new favorite just entered the chat',
     `Meet ${product}. You're welcome.`,
   ];
+  const reaction = chooseReaction(`${product} ${description}`, category);
+  const soundtrack = soundtrackForReaction(reaction);
   return {
     product: cleanText(product, 60),
     url,
@@ -157,8 +164,9 @@ export function makePlan(
       ? captions.map((c) => cleanText(c, 100))
       : defaultCaptions) as [string, string, string],
     background: `/assets/${config.bg}.jpg`,
-    gif: `/assets/${config.gif}.gif`,
-    audio: '/assets/gimme-that-groove.mp3',
+    gif: reactionById(reaction).gif,
+    reaction,
+    audio: soundtrack.audio,
     accent: config.accent,
     credits: [
       {
@@ -169,10 +177,7 @@ export function makePlan(
         label: 'Animated reactions · Google Noto (CC BY 4.0)',
         url: 'https://googlefonts.github.io/noto-emoji-animation/',
       },
-      {
-        label: 'Gimme that Groove! · Michael Ramir C. / Mixkit',
-        url: 'https://mixkit.co/free-stock-music/funk/',
-      },
+      soundtrack.credit,
     ],
   };
 }

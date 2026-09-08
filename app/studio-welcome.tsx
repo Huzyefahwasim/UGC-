@@ -2,14 +2,7 @@
 
 import { useState, useSyncExternalStore } from 'react';
 import Image from 'next/image';
-import {
-  ArrowUpRight,
-  Film,
-  Music2,
-  Pause,
-  Play,
-  Sparkles,
-} from 'lucide-react';
+import { ArrowUpRight, Music2, Pause, Play, Sparkles } from 'lucide-react';
 
 const examples = [
   {
@@ -17,9 +10,9 @@ const examples = [
     type: 'BEAUTY',
     background: 'beauty',
     gif: 'heart-eyes',
-    hook: ['Your routine.', 'A little glow-up.'],
+    hook: ['Less routine.', 'More glow.'],
     prompt:
-      "I'm building Glow Theory, a skincare brand for a simple daily glow routine.",
+      "I'm building Glow Theory, a skincare brand for a simple daily glow routine. Make a warm, close-up morning scene for busy people who want fewer steps, with a playful glow-up reaction.",
   },
   {
     product: 'CalAI',
@@ -28,7 +21,7 @@ const examples = [
     gif: 'mind-blown',
     hook: ['Wait. That’s', 'all it takes?'],
     prompt:
-      "I'm building CalAI, a calorie-tracking app. Here's the site: calai.app",
+      "I'm building CalAI, a calorie-tracking app. Here's the site: calai.app. Show a relatable lunch moment for someone tired of logging every ingredient. Make it bright, casual and surprising.",
   },
   {
     product: 'Tempo',
@@ -37,7 +30,7 @@ const examples = [
     gif: 'muscle',
     hook: ['New routine.', 'Who’s this?'],
     prompt:
-      "I'm building Tempo, a fitness app that makes daily workouts easy to stick to.",
+      "I'm building Tempo, a fitness app that makes daily workouts easy to stick to. Show the small win of finishing a morning workout at home, for people starting a new habit. Keep it encouraging and energetic.",
   },
 ];
 
@@ -64,36 +57,32 @@ export function StudioWelcome({
     <div className="welcome" data-motion={moving}>
       <div className="welcome-copy">
         <div className="welcome-kicker">
-          <span /> SMALL VIDEOS. BIG MAIN-CHARACTER ENERGY.
+          <span /> A SMALL VIDEO. A STRONG FIRST IMPRESSION.
         </div>
         <h1>
           Your product.
           <br />
-          Their next <span>obsession.</span>
+          <span>Made to move.</span>
         </h1>
         <p>
-          A product link becomes a creator-style video.
-          <br className="desktop-break" /> Directed scenes. Natural movement.
-          Sound that fits.
+          Drop a link. We’ll turn what makes it good into a short video with a
+          hook, a beat, and a reaction that fits.
         </p>
         <div className="ingredient-strip" aria-label="Your video direction">
           <span>
-            <Film size={14} /> Directed scenes
+            <span className="type-ingredient">Aa</span> Hooks that land
           </span>
           <span>
-            <span className="type-ingredient">Aa</span> Strong hooks
+            <Music2 size={14} /> Sound that fits
           </span>
           <span>
-            <Music2 size={14} /> Music + reactions
-          </span>
-          <span>
-            <Sparkles size={14} /> Vertical video
+            <Sparkles size={14} /> Reactions with personality
           </span>
         </div>
       </div>
       <div className="showcase">
         <div className="showcase-label">
-          <span>A FEW CREATIVE DIRECTIONS</span>
+          <span>FIND YOUR ANGLE</span>
           <button
             type="button"
             onClick={() => setPaused(!paused)}
@@ -148,7 +137,7 @@ export function StudioWelcome({
               <span className="example-footer">
                 <span>
                   <b>{example.product}</b>
-                  <span>Concept preview</span>
+                  <span>Try this direction</span>
                 </span>
                 <span className="example-open">
                   <ArrowUpRight size={17} />
@@ -163,10 +152,7 @@ export function StudioWelcome({
           ))}
         </div>
         <div className="showcase-caption">
-          <span>Concept previews, not generated results.</span>
-          <span>
-            Pick an example to start <ArrowUpRight size={12} />
-          </span>
+          <span>Concept previews · Pick one to shape your brief.</span>
         </div>
       </div>
     </div>

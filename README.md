@@ -21,7 +21,8 @@ No Higgsfield credentials are used. Anonymous LTX access works within a small sh
 ## Video flow
 
 - Greetings and questions stay in chat. Product introductions, URLs and explicit video requests create a brief.
-- Product-page metadata, description and user preferences inform an action, subject, setting, camera move and lighting direction.
+- Product-page metadata, audience, use moment and user preferences inform the hook, benefit, CTA and one filmable scene. Caption-only revisions preserve the established scene.
+- Eleven curated animated reactions match the product and tone: calm for meditation, thinking for learning, coffee for rituals, leaf for plant care, and others. Calm/thoughtful concepts get a quieter soundtrack, restrained motion and smaller captions above the face.
 - LTX generates one continuous six-second vertical shot. It does not generate speech, music, captions or GIFs.
 - The browser composites the footage with animated captions, a beat-reactive Google Noto GIF, music and a product CTA, then saves the export.
 - Keep the tab visible during the six-second finishing step. A failed finish can reuse the saved footage without another GPU submission.

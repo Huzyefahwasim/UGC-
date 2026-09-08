@@ -18,6 +18,7 @@ import {
 } from './storage.ts';
 import type { VideoPlan } from './types.ts';
 import { validShot } from './video-direction.ts';
+import { validReaction } from './reactions.ts';
 
 const LIFETIME = 24 * 60 * 60 * 1000;
 const MAX_TICKET_LENGTH = 7800;
@@ -67,6 +68,7 @@ function validPlan(value: unknown): value is VideoPlan {
   ];
   return (
     (plan.shot === undefined || validShot(plan.shot)) &&
+    (plan.reaction === undefined || validReaction(plan.reaction)) &&
     strings.every(
       (name) => typeof plan[name] === 'string' && plan[name].length <= 4096,
     ) &&

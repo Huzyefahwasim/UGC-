@@ -2,6 +2,17 @@
 
 > Deployment status: the user reported deleting the former ChatGPT Site. URLs in the earlier evidence below are historical and are not the current deliverable. The app is being prepared for user-managed Vercel hosting; no Vercel production deployment has been performed.
 
+## Context, reactions and studio polish — 2026-09-08
+
+- Added 11 allowlisted Google Noto GIF reactions selected from product use context and tone. Calm mental-wellness briefs reject inappropriate shocked/party reactions. Explicit emoji revisions retain unrelated captions and scene details.
+- Added licensed Relax Beat for calm/thoughtful concepts; normalized the quiet intro and restrained reaction motion. Calm captions are smaller and placed higher to leave the creator's face visible.
+- Removed routine engine/GPU/shared-queue labels and technical footer. Creative brief and asset/AI disclosures remain in expandable details. Revised hero, composer, result cards, and generation progress with contextual emoji.
+- Browser review: 390 × 844 mobile layout has no horizontal overflow and composer fits within the viewport. Actual sidebar layout reviewed. Motion remains pausable and reduced-motion CSS is retained.
+- Real Headspace URL request completed from Gemini brief through LTX and the normal browser compositor to local storage, choosing calm reaction and Relax Beat. Output /api/videos/1a85d05b-f7ad-4546-9842-11f2bb396b17 was H.264/AAC, 720 × 1280, 6.006367 seconds.
+- Inspection prompted smaller/higher captions and louder calm audio. Reused that same real raw footage in a temporary QA page to verify only the final compositor refinements, without another provider generation. Final review output /api/videos/ab8a6797-2e1e-4d72-b285-12b5c436eb07: 6.015167 seconds, H.264/AAC 720 × 1280, 1,952,870 bytes. Audio mean -26.0 dB and peak -12.9 dB. Three-frame inspection confirmed a visible face, changing captions and animated calm emoji. Review artifacts are ignored under .artifacts/headspace-refined.mp4 and headspace-refined-contact.png. The temporary QA route was removed before the final build.
+
+- Final checks: 85 automated tests, lint and production build passed. The local developer badge was also disabled using Next.js documented devIndicators setting. No provider generation was needed for the final caption/audio refinement.
+
 ## Gemini and authenticated LTX local test — 2026-09-08
 
 - Both server credentials are configured; neither key is exposed in the health response. Google accepted the Gemini key for model listing; Hugging Face requests now use the owner's token.

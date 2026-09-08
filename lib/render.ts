@@ -1,5 +1,6 @@
 import { parseGIF, decompressFrames } from 'gifuct-js';
 import type { VideoPlan } from './types';
+import { chooseReaction, reactionById } from './reactions';
 const W = 540,
   H = 960;
 function image(src: string, signal: AbortSignal) {
@@ -99,6 +100,12 @@ export async function renderVideo(
   footage?: HTMLVideoElement,
 ) {
   const DURATION = footage ? 6 : 8;
+  const reaction = reactionById(
+    plan.reaction || chooseReaction(plan.description, plan.category),
+  );
+  const quiet = reaction.mood === 'calm' || reaction.mood === 'thoughtful';
+  const motion = quiet ? 0.3 : 1;
+  let volume = quiet ? 0.5 : 0.6;
   if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream)
     throw new Error(
       'Video rendering needs a recent Chrome, Edge, Firefox, or Safari browser.',
@@ -169,6 +176,25 @@ export async function renderVideo(
     if (!bitmaps.length)
       throw new Error('The reaction GIF was empty. Please try again.');
     const buffer = await audio.decodeAudioData(audioData);
+    if (quiet) {
+      // Normalize the quiet intro to an audible level without clipping peaks.
+      const samples = buffer.getChannelData(0);
+      const end = Math.min(
+        samples.length,
+        Math.floor(buffer.sampleRate * DURATION),
+      );
+      let sum = 0,
+        peak = 0,
+        count = 0;
+      for (let i = 0; i < end; i += 4) {
+        sum += samples[i] * samples[i];
+        peak = Math.max(peak, Math.abs(samples[i]));
+        count++;
+      }
+      const rms = Math.sqrt(sum / Math.max(1, count));
+      if (rms > 0.0001)
+        volume = Math.min(3, 0.8 / Math.max(peak, 0.001), 0.055 / rms);
+    }
     await audio.resume();
     if (audio.state !== 'running')
       throw new Error(
@@ -183,7 +209,7 @@ export async function renderVideo(
     stream = canvas.captureStream(30);
     const destination = audio.createMediaStreamDestination();
     const gain = audio.createGain();
-    gain.gain.value = 0.6;
+    gain.gain.value = volume;
     gain.connect(destination);
     source = audio.createBufferSource();
     source.buffer = buffer;
@@ -208,15 +234,17 @@ export async function renderVideo(
     });
     const chunks: Blob[] = [];
     const ivory = '#f7f5e9';
-    const lime = '#d3fb79';
+    const lime = /^#[0-9a-f]{6}$/i.test(plan.accent) ? plan.accent : '#d3fb79';
     const starts = [0, DURATION / 3, (DURATION * 2) / 3];
     const lengths = [DURATION / 3, DURATION / 3, DURATION / 3];
-    const titles = ['A GOOD FIND', 'HERE’S THE THING', 'YOUR NEXT FAVORITE'];
+    const titles = quiet
+      ? ['A MOMENT FOR YOU', 'A LITTLE EVERY DAY', 'MAKE ROOM FOR IT']
+      : ['FOUND YOUR NEXT FAVORITE', 'HERE’S THE GOOD PART', 'GIVE IT A TRY'];
     const captionLayouts = plan.captions.map((caption) => {
-      let size = 56;
+      let size = quiet ? 46 : 56;
       ctx.font = `900 ${size}px "Arial Black", Arial, sans-serif`;
       let rows = lines(ctx, caption, W - 100);
-      while (rows.length > 4 && size > 26) {
+      while (rows.length > (quiet ? 3 : 4) && size > 26) {
         size -= 2;
         ctx.font = `900 ${size}px "Arial Black", Arial, sans-serif`;
         rows = lines(ctx, caption, W - 100);
@@ -302,7 +330,7 @@ export async function renderVideo(
       // Keep the labels, captions, reaction and product inside the same safe
       // area throughout all three beats; the motion comes from their entrances.
       ctx.save();
-      ctx.globalAlpha = easeOut(local / 0.2);
+      ctx.globalAlpha = quiet ? 0 : easeOut(local / 0.2);
       ctx.translate(0, (1 - easeOut(local / 0.3)) * 10);
       ctx.fillStyle = 'rgba(12,16,12,.56)';
       rounded(ctx, 34, 62, 266, 38, 19);
@@ -323,7 +351,8 @@ export async function renderVideo(
       const layout = captionLayouts[scene];
       const captionExit = scene < 2 ? clamp(remaining / 0.14) : 1;
       const captionTop =
-        255 - ((layout.rows.length - 1) * layout.lineHeight) / 2;
+        (quiet ? 153 : 255) -
+        ((layout.rows.length - 1) * layout.lineHeight) / 2;
       layout.rows.forEach((line, i) => {
         const arrival = (local - i * 0.055) / 0.32;
         const reveal = easeOut(arrival);
@@ -334,13 +363,13 @@ export async function renderVideo(
           W / 2,
           captionTop + i * layout.lineHeight + (1 - reveal) * 28,
         );
-        const scale = 0.96 + spring(arrival) * 0.04;
+        const scale = quiet ? 1 : 0.96 + spring(arrival) * 0.04;
         ctx.scale(scale, scale);
         ctx.font = `900 ${layout.size}px "Arial Black", Arial, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         if (last) {
-          ctx.rotate(-0.028);
+          ctx.rotate(quiet ? 0 : -0.028);
           const width = ctx.measureText(line).width + 24;
           ctx.fillStyle = lime;
           rounded(
@@ -365,12 +394,12 @@ export async function renderVideo(
 
       const frame =
         bitmaps.find((f) => f.end > (t * 1000) % total) || bitmaps[0];
-      const arrival = spring(local / 0.52);
-      const pulse = 1 + level * 0.024;
-      const reactionY = (footage ? 678 : 593) + Math.sin(t * 1.6) * 6;
+      const arrival = quiet ? easeOut(local / 0.65) : spring(local / 0.52);
+      const pulse = 1 + level * 0.024 * motion;
+      const reactionY = (footage ? 678 : 593) + Math.sin(t * 1.6) * 6 * motion;
       ctx.save();
       ctx.translate(
-        (footage ? W - 126 : W / 2) + Math.sin(t * 1.5) * 8,
+        (footage ? W - 126 : W / 2) + Math.sin(t * 1.5) * 8 * motion,
         reactionY,
       );
       const halo = ctx.createRadialGradient(0, 5, 75, 0, 5, 224);
@@ -379,13 +408,13 @@ export async function renderVideo(
       halo.addColorStop(1, 'rgba(8,12,7,0)');
       ctx.fillStyle = halo;
       ctx.fillRect(-224, -219, 448, 448);
-      ctx.rotate(Math.sin(t * 1.8) * 0.025 + (1 - arrival) * -0.09);
+      ctx.rotate((Math.sin(t * 1.8) * 0.025 + (1 - arrival) * -0.09) * motion);
       const reactionScale = (0.86 + arrival * 0.14) * pulse;
       ctx.scale(reactionScale, reactionScale);
       ctx.shadowColor = 'rgba(0,0,0,.28)';
       ctx.shadowBlur = 24;
       ctx.shadowOffsetY = 12;
-      const reactionSize = footage ? 185 : 360;
+      const reactionSize = footage ? (quiet ? 160 : 185) : quiet ? 280 : 340;
       ctx.drawImage(
         frame.image,
         -reactionSize / 2,
@@ -397,15 +426,20 @@ export async function renderVideo(
 
       ctx.save();
       ctx.globalAlpha = easeOut((local - 0.22) / 0.22);
-      ctx.translate(370, 739 + (1 - easeOut((local - 0.22) / 0.28)) * 12);
-      ctx.rotate(0.055);
+      ctx.translate(footage ? W - 126 : W / 2, footage ? 772 : 787);
+      ctx.rotate(quiet ? 0 : 0.025);
       ctx.fillStyle = ivory;
-      rounded(ctx, -77, -16, 154, 32, 4);
+      ctx.font = '700 12px Arial, sans-serif';
+      const tagWidth = Math.min(
+        222,
+        ctx.measureText(reaction.label).width + 24,
+      );
+      rounded(ctx, -tagWidth / 2, -16, tagWidth, 32, 9);
       ctx.fillStyle = '#181d14';
       ctx.font = '700 12px Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(footage ? 'THAT FEELING ↑' : 'THE REACTION ↑', 0, 1);
+      ctx.fillText(fittedText(ctx, reaction.label, tagWidth - 20), 0, 1);
       ctx.restore();
 
       const brandArrival = easeOut(t / 0.45);
@@ -518,7 +552,7 @@ export async function renderVideo(
       document.addEventListener('visibilitychange', visibility);
       recorder.start(250);
       source!.start(0, 0, DURATION);
-      gain.gain.setValueAtTime(0.6, audio.currentTime + DURATION - 0.5);
+      gain.gain.setValueAtTime(volume, audio.currentTime + DURATION - 0.5);
       gain.gain.linearRampToValueAtTime(0, audio.currentTime + DURATION);
       const timer = setInterval(() => {
         const t = (performance.now() - start) / 1000;
