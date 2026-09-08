@@ -17,3 +17,9 @@ Record this yourself with your camera ON, using Loom or a screen recorder with a
 Be candid: the music is licensed stock rather than a live trend feed; the GIFs are Google Noto animations; rendering currently needs the tab to stay open. Do not call the no-key fallback a language model.
 
 Paste the actual recorded video URL in the submission's walkthrough field. Paste the live URL and public repository URL separately in the links field, clearly labeled.
+
+Live: https://ugc-cut-huzyefah.jeremy767623.chatgpt.site
+
+Public repository: https://github.com/Huzyefahwasim/UGC-
+
+The AI API key is not yet configured. Connect it and verify the conversation/revision segment before recording the walkthrough.
