@@ -2,6 +2,18 @@
 
 > Deployment status: the user reported deleting the former ChatGPT Site. URLs in the earlier evidence below are historical and are not the current deliverable. The app is being prepared for user-managed Vercel hosting; no Vercel production deployment has been performed.
 
+## Gemini and authenticated LTX local test — 2026-09-08
+
+- Both server credentials are configured; neither key is exposed in the health response. Google accepted the Gemini key for model listing; Hugging Face requests now use the owner's token.
+- Gemini 3.8 Flash returned 503/timeouts. Google rejected 2.5 Flash for new users and recommended 3.6 Flash. Verified 3.6 with real requests and selected it as the default.
+- Moved Gemini to Google's native generateContent API, with server-side key headers, separate system instructions, user/model conversation turns, JSON output, and low thinking. Legacy OpenAI remains explicit opt-in. Native parsing excludes thought parts and rejects incomplete/blocked responses.
+- The browser greeting returned a real Gemini reply without rendering a video. Two subsequent product attempts received transient 503 errors. These are now described as service unavailability rather than a model-configuration error.
+- A fresh conversation successfully processed https://www.headspace.com/ through Gemini → signed brief → authenticated LTX → browser composition → local upload → finished chat video. No fixture or previously generated footage was used for this run.
+- Finished video: /api/videos/c9a94391-bd6d-4ebf-bbb8-6f131f6c9b8f. FFprobe: 5.9995 seconds, H.264 720 × 1280, AAC, 2,324,722 bytes. Audio mean -23.5 dB, maximum -4.1 dB. Browser readyState 4. Byte-range request returned 206 with the requested 1,024 bytes.
+- Inspected three frames: meditation footage, three changing captions, animated reaction GIF and product CTA were present. Local review artifacts are ignored under .artifacts/headspace-finished.mp4 and headspace-contact.png.
+- 75 automated tests, lint and production build passed. Ten production traces contained no .env, .data or .agent-logs entries. Google service availability remains intermittent; this successful run is not an uptime guarantee.
+- App remains local at http://localhost:3000/; no deployment or paid-plan change was performed.
+
 ## Current engine: LTX-Video — 2026-09-08
 
 The owner selected the official Lightricks LTX-Video 0.9.8 13B distilled Space to replace Higgsfield. The historical sections below describe earlier versions.

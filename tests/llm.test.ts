@@ -11,7 +11,7 @@ void test('Gemini never uses stale OpenAI credentials, model or endpoint', () =>
   });
   assert.equal(settings.provider, 'gemini');
   assert.equal(settings.apiKey, undefined);
-  assert.equal(settings.model, 'gemini-3.8-flash');
+  assert.equal(settings.model, 'gemini-3.6-flash');
   assert.equal(
     new URL(settings.endpoint).hostname,
     'generativelanguage.googleapis.com',
@@ -48,23 +48,31 @@ void test('Gemini request carries conversation and directions to Google and pars
       calls++;
       assert.equal(
         url,
-        'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent',
       );
       assert.equal(
-        new Headers(init?.headers).get('Authorization'),
-        'Bearer test-secret',
+        new Headers(init?.headers).get('x-goog-api-key'),
+        'test-secret',
       );
       assert.equal(init?.redirect, 'error');
       const body = JSON.parse(init?.body as string);
-      assert.deepEqual(body.messages, messages);
-      assert.deepEqual(body.response_format, { type: 'json_object' });
-      assert.equal(body.reasoning_effort, 'low');
+      assert.deepEqual(body.systemInstruction.parts, [
+        { text: messages[0].content },
+      ]);
+      assert.deepEqual(body.contents, [
+        { role: 'user', parts: [{ text: 'Hi' }] },
+      ]);
+      assert.equal(body.generationConfig.responseMimeType, 'application/json');
+      assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, 'low');
       return Response.json({
-        choices: [
+        candidates: [
           {
-            finish_reason: 'stop',
-            message: {
-              content: JSON.stringify({ kind: 'chat', reply: 'Hello!' }),
+            finishReason: 'STOP',
+            content: {
+              parts: [
+                { text: 'Do not show this', thought: true },
+                { text: JSON.stringify({ kind: 'chat', reply: 'Hello!' }) },
+              ],
             },
           },
         ],
@@ -96,6 +104,58 @@ void test('Quota and authentication errors are sanitized without retries or prov
   }
 });
 
+void test('Native Gemini preserves prior assistant replies as model turns', async () => {
+  const settings = runtime({ GEMINI_API_KEY: 'test-secret' });
+  await creativeCompletion(
+    settings,
+    [
+      { role: 'system', content: 'Instructions' },
+      { role: 'user', content: 'My product is Bloom.' },
+      { role: 'assistant', content: 'What does Bloom do?' },
+      { role: 'user', content: 'Plant reminders.' },
+    ],
+    async (_url, init) => {
+      const body = JSON.parse(init?.body as string);
+      assert.deepEqual(
+        body.contents.map((m: { role: string }) => m.role),
+        ['user', 'model', 'user'],
+      );
+      assert.equal(body.contents[1].parts[0].text, 'What does Bloom do?');
+      return Response.json({
+        candidates: [
+          {
+            finishReason: 'STOP',
+            content: { parts: [{ text: '{"kind":"chat","reply":"Thanks!"}' }] },
+          },
+        ],
+      });
+    },
+  );
+});
+
+void test('Explicit legacy provider keeps the chat completions contract', async () => {
+  await creativeCompletion(
+    runtime({ AI_PROVIDER: 'openai', OPENAI_API_KEY: 'legacy-key' }),
+    [{ role: 'user', content: 'Hi' }],
+    async (url, init) => {
+      assert.equal(url, 'https://api.openai.com/v1/chat/completions');
+      assert.equal(
+        new Headers(init?.headers).get('Authorization'),
+        'Bearer legacy-key',
+      );
+      assert.equal(new Headers(init?.headers).get('x-goog-api-key'), null);
+      return Response.json({
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: { content: '{"kind":"chat","reply":"Hi!"}' },
+          },
+        ],
+      });
+    },
+  );
+});
+
 void test('Incomplete, blocked and malformed briefs never trigger a render', async () => {
   for (const [finish_reason, content] of [
     ['length', '{"kind":"render","reply":"unfinished"}'],
@@ -109,10 +169,16 @@ void test('Incomplete, blocked and malformed briefs never trigger a render', asy
         runtime({ GEMINI_API_KEY: 'test-secret' }),
         [],
         async () =>
-          Response.json({ choices: [{ finish_reason, message: { content } }] }),
+          Response.json({
+            candidates: [
+              {
+                finishReason: finish_reason.toUpperCase(),
+                content: { parts: [{ text: content }] },
+              },
+            ],
+          }),
       ),
       /completely/,
     );
   }
 });
-

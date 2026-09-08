@@ -11,23 +11,51 @@ export async function creativeCompletion(
     throw new RequestError('Connect a chat API key first.', 503);
   const label =
     settings.provider === 'gemini' ? 'Gemini' : 'The creative assistant';
+  const gemini = settings.provider === 'gemini';
+  const url = gemini
+    ? `${settings.endpoint}/models/${encodeURIComponent(settings.model)}:generateContent`
+    : `${settings.endpoint}/chat/completions`;
+  const body = gemini
+    ? {
+        systemInstruction: {
+          parts: messages
+            .filter((m) => m.role === 'system')
+            .map((m) => ({ text: m.content })),
+        },
+        contents: messages
+          .filter((m) => m.role !== 'system')
+          .map((m) => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content }],
+          })),
+        generationConfig: {
+          temperature: 1,
+          maxOutputTokens: 4096,
+          responseMimeType: 'application/json',
+          thinkingConfig: settings.model.startsWith('gemini-2.5')
+            ? { thinkingBudget: 1024 }
+            : { thinkingLevel: 'low' },
+        },
+      }
+    : {
+        model: settings.model,
+        temperature: 0.75,
+        max_tokens: 1100,
+        response_format: { type: 'json_object' },
+        messages,
+      };
   let response: Response;
   try {
-    response = await send(`${settings.endpoint}/chat/completions`, {
+    response = await send(url, {
       method: 'POST',
       redirect: 'error',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${settings.apiKey}`,
+        ...(gemini
+          ? { 'x-goog-api-key': settings.apiKey }
+          : { Authorization: `Bearer ${settings.apiKey}` }),
       },
-      body: JSON.stringify({
-        model: settings.model,
-        temperature: settings.provider === 'gemini' ? 1 : 0.75,
-        max_tokens: settings.provider === 'gemini' ? 4096 : 1100,
-        ...(settings.provider === 'gemini' ? { reasoning_effort: 'low' } : {}),
-        response_format: { type: 'json_object' },
-        messages,
-      }),
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(35000),
     });
   } catch {
@@ -37,6 +65,11 @@ export async function creativeCompletion(
     );
   }
   if (!response.ok) {
+    if (response.status >= 500)
+      throw new RequestError(
+        `${label} is temporarily unavailable. Please try again shortly.`,
+        503,
+      );
     if (response.status === 429)
       throw new RequestError(
         `${label} reached a usage limit. Please wait and try again, or check your API quota.`,
@@ -56,9 +89,22 @@ export async function creativeCompletion(
     const data = JSON.parse(
       new TextDecoder().decode(await readLimited(response, 100000)),
     );
-    const choice = data.choices?.[0];
-    if (choice?.finish_reason !== 'stop') throw new Error('Incomplete output');
-    const result = JSON.parse(choice.message?.content || '');
+    const choice = gemini ? data.candidates?.[0] : data.choices?.[0];
+    if (
+      (gemini ? choice?.finishReason : choice?.finish_reason) !==
+      (gemini ? 'STOP' : 'stop')
+    )
+      throw new Error('Incomplete output');
+    const content = gemini
+      ? choice.content?.parts
+          ?.filter(
+            (part: { text?: string; thought?: boolean }) =>
+              typeof part.text === 'string' && !part.thought,
+          )
+          .map((part: { text: string }) => part.text)
+          .join('')
+      : choice.message?.content;
+    const result = JSON.parse(content || '');
     if (
       !result ||
       typeof result !== 'object' ||

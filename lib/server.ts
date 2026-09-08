@@ -13,14 +13,14 @@ export function runtime(env: Record<string, string | undefined> = process.env) {
     )?.trim(),
     endpoint:
       provider === 'gemini'
-        ? 'https://generativelanguage.googleapis.com/v1beta/openai'
+        ? 'https://generativelanguage.googleapis.com/v1beta'
         : (env.AI_BASE_URL?.trim() || 'https://api.openai.com/v1').replace(
             /\/$/,
             '',
           ),
     model:
       provider === 'gemini'
-        ? env.GEMINI_MODEL?.trim() || 'gemini-3.8-flash'
+        ? env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash'
         : env.AI_MODEL?.trim() || 'gpt-4.1-mini',
   };
 }

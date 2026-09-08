@@ -46,12 +46,12 @@ The main engine is the official Lightricks LTX-Video 0.9.8 13B distilled Space: 
 | `BLOB_READ_WRITE_TOKEN` | Public Vercel Blob store for production records and finished videos |
 | `AI_PROVIDER` | `gemini` by default; `openai` explicitly selects the legacy provider |
 | `GEMINI_API_KEY` | Google AI Studio key for conversation, captions and shot direction |
-| `GEMINI_MODEL` | Defaults to `gemini-3.8-flash` |
+| `GEMINI_MODEL` | Defaults to `gemini-3.6-flash` |
 | `OPENAI_API_KEY` | Only used with `AI_PROVIDER=openai` |
 | `AI_BASE_URL` | OpenAI-compatible base URL |
 | `AI_MODEL` | Chat model ID |
 
-Create a Gemini key at https://aistudio.google.com/apikey and save it as `GEMINI_API_KEY` in `.env`. Requests go directly to Google using its OpenAI-compatible protocol, without OpenAI credentials or billing. Free-tier quotas depend on your Google project; enabling paid billing changes costs. See [Google pricing](https://ai.google.dev/gemini-api/docs/pricing). There is no automatic provider switch on quota errors. Without a Gemini key, chat uses the basic fallback. `/api/health` reports configuration, not remote key validity.
+Create a Gemini key at https://aistudio.google.com/apikey and save it as `GEMINI_API_KEY` in `.env`. Requests go directly to Google using its native generateContent API, without OpenAI credentials or billing. Free-tier quotas depend on your Google project; enabling paid billing changes costs. See [Google pricing](https://ai.google.dev/gemini-api/docs/pricing). There is no automatic provider switch on quota errors. Without a Gemini key, chat uses the basic fallback. `/api/health` reports configuration, not remote key validity.
 
 Keep keys server-side and out of Git. Never prefix secrets with `NEXT_PUBLIC_`. Changing the signing secret invalidates existing jobs.
 
