@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env*
+!.env.example
+.capture.pid
+.capture-errors.log
+.capture-cli-*.jsonl

@@ -1,0 +1,9 @@
+[[hooks.SessionStart]]
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"D:/UGC creator/scripts/capture-start.ps1\""
+
+[[hooks.Stop]]
+[[hooks.Stop.hooks]]
+type = "command"
+command = "node \"D:/UGC creator/scripts/capture.mjs\""
