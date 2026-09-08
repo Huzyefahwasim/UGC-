@@ -9,7 +9,7 @@ export const categories: Category[] = [
 ];
 export function extractUrl(text: string): string | null {
   const match = text.match(
-    /(?:https?:\/\/[^\s<>]+|\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:com|app|io|co|ai|net|org|dev|xyz|so|me|site)(?:\/[^\s<>]*)?)/i,
+    /(?:https?:\/\/[^\s<>]+|(?<![\w@.-])(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]+)(?![\w@-])(?:[/?#][^\s<>]*)?)/i,
   );
   if (!match) return null;
   const raw = match[0].replace(/[),.!?;:'"\]]+$/, '');
@@ -92,9 +92,9 @@ export function metadata(html: string, url: string) {
   function meta(name: string) {
     for (const tag of tags) {
       const attrs = Object.fromEntries(
-        [...tag.matchAll(/([\w:-]+)\s*=\s*["']([^"']*)["']/g)].map((m) => [
+        [...tag.matchAll(/([\w:-]+)\s*=\s*(["'])([\s\S]*?)\2/g)].map((m) => [
           m[1].toLowerCase(),
-          m[2],
+          m[3],
         ]),
       );
       if (attrs.property === name || attrs.name === name)

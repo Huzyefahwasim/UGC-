@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import {
   ArrowUp,
   ArrowUpRight,
@@ -10,6 +11,12 @@ import {
   Scissors,
   Film,
   Music2,
+  Plus,
+  RotateCcw,
+  Sparkles,
+  Link2,
+  Volume2,
+  CircleHelp,
   X,
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -18,8 +25,15 @@ type Message = {
   id: string;
   role: 'user' | 'assistant';
   text: string;
-  video?: { url: string; plan: VideoPlan };
+  video?: {
+    url: string;
+    plan: VideoPlan;
+    poster?: string;
+    local?: boolean;
+    format?: 'mp4' | 'webm';
+  };
   error?: boolean;
+  retryPrompt?: string;
 };
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -28,10 +42,72 @@ export default function Home() {
   const [status, setStatus] = useState('');
   const [progress, setProgress] = useState(0);
   const [copied, setCopied] = useState('');
-  const [lastPrompt, setLastPrompt] = useState('');
+  const [hydrated, setHydrated] = useState(false);
+  const [aiReady, setAiReady] = useState<boolean | null>(null);
+  const [activePlan, setActivePlan] = useState<VideoPlan | null>(null);
+  const [notice, setNotice] = useState('');
+  const busyRef = useRef(false);
+  const objectUrls = useRef<string[]>([]);
   const end = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const cancel = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const urls = objectUrls.current;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('cut-chat-v1') || '{}');
+      if (Array.isArray(saved.messages))
+        // Session storage is only available after the server-rendered page hydrates.
+        // eslint-disable-next-line react/react-compiler
+        setMessages(
+          saved.messages
+            .filter(
+              (m: Message) =>
+                m &&
+                typeof m.text === 'string' &&
+                ['user', 'assistant'].includes(m.role),
+            )
+            .slice(-60),
+        );
+      if (typeof saved.draft === 'string') setDraft(saved.draft.slice(0, 2400));
+    } catch {}
+    setHydrated(true);
+    fetch('/api/health')
+      .then((r) => r.json())
+      .then((data) => setAiReady(!!data.aiConfigured))
+      .catch(() => {});
+    return () => {
+      cancel.current?.abort();
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, []);
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      sessionStorage.setItem(
+        'cut-chat-v1',
+        JSON.stringify({
+          draft,
+          messages: messages.map((m) => ({
+            ...m,
+            video: m.video?.local
+              ? undefined
+              : m.video
+                ? {
+                    url: m.video.url,
+                    plan: m.video.plan,
+                    format: m.video.format,
+                  }
+                : undefined,
+          })),
+        }),
+      );
+    } catch {}
+  }, [messages, draft, hydrated]);
+  useEffect(() => {
+    if (!input.current) return;
+    input.current.style.height = 'auto';
+    input.current.style.height = `${Math.min(input.current.scrollHeight, 160)}px`;
+  }, [draft]);
   useEffect(() => {
     const context = (
       document as Document & {
@@ -82,14 +158,15 @@ export default function Home() {
   useEffect(() => {
     if (messages.length || busy)
       end.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, busy, status]);
+  }, [messages, busy]);
   async function send(value = draft) {
     const text = value.trim();
-    if (!text || busy) return;
+    if (!text || busyRef.current) return;
+    busyRef.current = true;
     setDraft('');
-    setLastPrompt(text);
     setBusy(true);
     setProgress(0);
+    setActivePlan(null);
     setStatus('Thinking…');
     const history = [
       ...messages,
@@ -98,20 +175,26 @@ export default function Home() {
     setMessages(history);
     const controller = new AbortController();
     cancel.current = controller;
-    const audio =
-      typeof AudioContext !== 'undefined' ? new AudioContext() : undefined;
-    void audio?.resume();
+    let audio: AudioContext | undefined;
     try {
+      if (typeof AudioContext !== 'undefined') {
+        audio = new AudioContext();
+        void audio.resume().catch(() => {});
+      }
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: history
             .slice(-16)
+            .filter((m) => !m.error)
             .map((m) => ({ role: m.role, content: m.text })),
           previousPlan: messages.findLast((m) => m.video)?.video?.plan,
         }),
-        signal: controller.signal,
+        signal: AbortSignal.any([
+          controller.signal,
+          AbortSignal.timeout(60000),
+        ]),
       });
       const result = (await response.json()) as {
         error?: string;
@@ -130,8 +213,9 @@ export default function Home() {
         ]);
       else {
         setStatus(`Making a cut for ${result.plan.product}…`);
+        setActivePlan(result.plan);
         const { renderVideo } = await import('@/lib/render');
-        const blob = await renderVideo(
+        const { blob, poster } = await renderVideo(
           result.plan,
           (value, label) => {
             setProgress(value);
@@ -142,27 +226,72 @@ export default function Home() {
         );
         setStatus('Saving your video…');
         setProgress(96);
-        const upload = await fetch('/api/videos', {
-          method: 'POST',
-          headers: {
-            'Content-Type': blob.type,
-            'X-Render-Ticket': result.ticket,
-          },
-          body: blob,
-          signal: controller.signal,
-        });
-        const saved = (await upload.json()) as { error?: string; url: string };
-        if (!upload.ok)
-          throw new Error(
-            saved.error || 'Could not save the video. Please try again.',
-          );
+        const localUrl = URL.createObjectURL(blob);
+        const format = blob.type.includes('webm')
+          ? ('webm' as const)
+          : ('mp4' as const);
+        objectUrls.current.push(localUrl);
+        if (blob.size > 4000000) {
+          setMessages((m) => [
+            ...m,
+            {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              text: 'Your video is ready to download. It exceeded the sharing upload limit, so this copy is available only in this tab.',
+              video: {
+                url: localUrl,
+                plan: result.plan!,
+                poster,
+                local: true,
+                format,
+              },
+            },
+          ]);
+          return;
+        }
+        let saved: { error?: string; url: string };
+        try {
+          const upload = await fetch('/api/videos', {
+            method: 'POST',
+            headers: {
+              'Content-Type': blob.type,
+              'X-Render-Ticket': result.ticket,
+            },
+            body: blob,
+            signal: AbortSignal.any([
+              controller.signal,
+              AbortSignal.timeout(30000),
+            ]),
+          });
+          saved = (await upload.json()) as { error?: string; url: string };
+          if (!upload.ok)
+            throw new Error(saved.error || 'Could not save the video.');
+        } catch (error) {
+          if (controller.signal.aborted) throw error;
+          setMessages((m) => [
+            ...m,
+            {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              text: 'The video rendered, but its share link couldn’t be saved. You can still download it below. Keep this tab open until you do.',
+              video: {
+                url: localUrl,
+                plan: result.plan!,
+                poster,
+                local: true,
+                format,
+              },
+            },
+          ]);
+          return;
+        }
         setMessages((m) => [
           ...m,
           {
             id: crypto.randomUUID(),
             role: 'assistant',
             text: result.message,
-            video: { url: saved.url, plan: result.plan! },
+            video: { url: saved.url, plan: result.plan!, poster, format },
           },
         ]);
       }
@@ -173,6 +302,7 @@ export default function Home() {
           id: crypto.randomUUID(),
           role: 'assistant',
           error: true,
+          retryPrompt: text,
           text: controller.signal.aborted
             ? 'Stopped. Send another message whenever you’re ready.'
             : error instanceof Error
@@ -181,11 +311,25 @@ export default function Home() {
         },
       ]);
     } finally {
-      void audio?.close();
+      void audio?.close().catch(() => {});
+      busyRef.current = false;
       setBusy(false);
       cancel.current = null;
       input.current?.focus();
     }
+  }
+  function newChat() {
+    if (busyRef.current) return;
+    setMessages([]);
+    setDraft('');
+    setActivePlan(null);
+    setNotice('New chat started.');
+    input.current?.focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function revise(value: string, plan: VideoPlan) {
+    setDraft(`For ${plan.product}: ${value}`);
+    input.current?.focus();
   }
   async function copy(url: string) {
     try {
@@ -197,18 +341,46 @@ export default function Home() {
     }
   }
   return (
-    <main className="studio">
+    <main className={`studio ${messages.length ? 'in-chat' : ''}`}>
+      <a className="skip-link" href="#message">
+        Skip to message
+      </a>
       <header className="topbar">
-        <a href="/" className="brand" aria-label="Cut home">
+        <button
+          type="button"
+          onClick={newChat}
+          disabled={busy}
+          className="brand"
+          aria-label="Cut — start a new chat"
+        >
           <span className="brand-mark">
             <Scissors size={21} strokeWidth={2.5} />
           </span>
           cut<span className="brand-dot">.</span>
-        </a>
+        </button>
         <span className="header-note">
           A little chat. A great little video.
         </span>
-        <span className="beta">THE UGC STUDIO</span>
+        <div className="header-actions">
+          {aiReady !== null && (
+            <span
+              className={`mode-badge ${aiReady ? 'connected' : ''}`}
+              title={
+                aiReady
+                  ? 'Creative assistant connected'
+                  : 'Product videos and simple hook edits are available. Free-form chat needs an AI provider.'
+              }
+            >
+              <span />
+              {aiReady ? 'Creative assistant' : 'Basic mode'}
+            </span>
+          )}
+          {messages.length > 0 && (
+            <button className="new-chat" onClick={newChat} disabled={busy}>
+              <Plus size={16} /> New chat
+            </button>
+          )}
+        </div>
       </header>
       <section
         className={`conversation ${messages.length ? 'has-messages' : ''}`}
@@ -217,7 +389,7 @@ export default function Home() {
         {!messages.length && (
           <div className="welcome">
             <div className="welcome-kicker">
-              <span /> FROM PRODUCT TO POST
+              <span /> YOUR NEXT POST STARTS HERE
             </div>
             <h1>
               Got a link?
@@ -225,34 +397,38 @@ export default function Home() {
               Let’s make it <span>move.</span>
             </h1>
             <p>
-              Tell me what you’re building. I’ll turn it into a short video
-              <br className="desktop-break" /> with bold captions, a beat, and
-              the perfect reaction GIF.
+              Send a product link. Get a short video with bold captions,
+              <br className="desktop-break" /> a good beat, and a reaction worth
+              watching.
             </p>
             <div className="ingredient-strip" aria-label="Video ingredients">
               <span>
-                <Film size={15} /> Real visuals
+                <Film size={16} /> Real visuals
               </span>
               <i>+</i>
               <span className="type-ingredient">
-                Aa <b>Big energy</b>
+                Aa <b>Bold captions</b>
               </span>
               <i>+</i>
               <span>
-                <Music2 size={15} /> A good beat
+                <Music2 size={16} /> Music
               </span>
               <i>+</i>
               <span>
-                <img
+                <Image
+                  unoptimized
                   src="/assets/mind-blown.gif"
-                  width="26"
-                  height="26"
+                  width="34"
+                  height="34"
                   alt=""
                 />{' '}
-                The reaction
+                Reaction GIF
               </span>
             </div>
           </div>
+        )}
+        {messages.length > 0 && (
+          <h1 className="sr-only">Your video creation chat</h1>
         )}
         <div
           className="messages"
@@ -278,9 +454,9 @@ export default function Home() {
                   <button
                     className="retry"
                     disabled={busy}
-                    onClick={() => send(lastPrompt)}
+                    onClick={() => send(message.retryPrompt)}
                   >
-                    Try again <ArrowUpRight size={14} />
+                    <RotateCcw size={15} /> Try again
                   </button>
                 )}
                 {message.video && (
@@ -291,49 +467,83 @@ export default function Home() {
                         playsInline
                         preload="metadata"
                         src={message.video.url}
+                        poster={message.video.poster}
                         aria-label={`${message.video.plan.product} marketing video`}
-                      />
-                      <span className="video-badge">YOUR FRESH CUT</span>
+                      >
+                        <track
+                          kind="captions"
+                          src="/assets/music-captions.vtt"
+                          srcLang="en"
+                          label="Music captions"
+                        />
+                      </video>
+                      <span className="video-badge">
+                        8 SEC <span>•</span> 9:16
+                      </span>
                     </div>
                     <div className="video-info">
                       <span className="ready">
-                        <Check size={13} /> Ready to share
+                        <Check size={14} />{' '}
+                        {message.video.local
+                          ? 'Ready to download'
+                          : 'Ready to share'}
                       </span>
                       <h2>{message.video.plan.product}</h2>
                       <p>
-                        8 seconds <span>·</span> 9:16 vertical <span>·</span>{' '}
-                        Sound on
+                        <Volume2 size={14} /> 720p vertical · Sound on
                       </p>
+                      <div className="caption-preview">
+                        <span>THE HOOK</span>
+                        <blockquote>
+                          “{message.video.plan.captions[0]}”
+                        </blockquote>
+                      </div>
                       <div className="video-actions">
                         <a
                           className="download"
-                          href={`${message.video.url}?download=1`}
-                          download
+                          href={
+                            message.video.local
+                              ? message.video.url
+                              : `${message.video.url}?download=1`
+                          }
+                          download={`cut-${message.video.plan.product.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.${message.video.format || 'mp4'}`}
                         >
                           <Download size={15} /> Download
                         </a>
-                        <button onClick={() => copy(message.video!.url)}>
-                          {copied === message.video.url ? (
-                            <Check size={15} />
-                          ) : (
-                            <Copy size={15} />
-                          )}{' '}
-                          {copied === message.video.url
-                            ? 'Copied'
-                            : 'Copy link'}
-                        </button>
+                        {!message.video.local && (
+                          <button onClick={() => copy(message.video!.url)}>
+                            {copied === message.video.url ? (
+                              <Check size={15} />
+                            ) : (
+                              <Copy size={15} />
+                            )}{' '}
+                            {copied === message.video.url
+                              ? 'Copied'
+                              : 'Copy link'}
+                          </button>
+                        )}
                       </div>
-                      <a
-                        className="open-video"
-                        href={message.video.url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Open video <ArrowUpRight size={13} />
-                      </a>
+                      {!message.video.local && (
+                        <a
+                          className="open-video"
+                          href={message.video.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open video <ArrowUpRight size={13} />
+                        </a>
+                      )}
                       <details>
                         <summary>What’s in this cut</summary>
                         <p>{message.video.plan.description}</p>
+                        <ol className="caption-list">
+                          {message.video.plan.captions.map((caption, i) => (
+                            <li key={i}>
+                              <b>{['Hook', 'Benefit', 'Close'][i]}</b>
+                              {caption}
+                            </li>
+                          ))}
+                        </ol>
                         {message.video.plan.credits.map((credit) => (
                           <a
                             key={credit.url}
@@ -348,6 +558,31 @@ export default function Home() {
                     </div>
                   </div>
                 )}
+                {message.video &&
+                  message.id === messages.findLast((m) => m.video)?.id && (
+                    <div className="revision-options">
+                      <span>Try another take</span>
+                      <button
+                        disabled={busy}
+                        onClick={() =>
+                          revise('make the hook punchier', message.video!.plan)
+                        }
+                      >
+                        <Sparkles size={14} /> Punchier
+                      </button>
+                      <button
+                        disabled={busy}
+                        onClick={() =>
+                          revise(
+                            'make the hook more playful',
+                            message.video!.plan,
+                          )
+                        }
+                      >
+                        More playful <ArrowUpRight size={13} />
+                      </button>
+                    </div>
+                  )}
               </div>
             </article>
           ))}
@@ -362,11 +597,34 @@ export default function Home() {
                   <LoaderCircle className="spin" size={15} />
                   {status}
                 </p>
+                {activePlan && (
+                  <div className="render-assets">
+                    <Image
+                      unoptimized
+                      width={40}
+                      height={54}
+                      src={activePlan.background}
+                      alt="Selected background"
+                    />
+                    <span>+</span>
+                    <Image
+                      unoptimized
+                      width={45}
+                      height={54}
+                      src={activePlan.gif}
+                      alt="Selected reaction GIF"
+                    />
+                    <div>
+                      <strong>{activePlan.product}</strong>
+                      <span>Three beats. One fresh cut.</span>
+                    </div>
+                  </div>
+                )}
                 {progress > 0 && (
                   <>
                     <Progress value={progress} className="render-progress" />
                     <span className="render-note">
-                      Keep this tab open while your video comes together.
+                      Keep this tab visible while your video comes together.
                     </span>
                   </>
                 )}
@@ -380,7 +638,6 @@ export default function Home() {
         <div className="composer-inner">
           {!messages.length && (
             <div className="suggestions">
-              <span>TRY A FIRST CUT</span>
               <button
                 onClick={() =>
                   send(
@@ -388,7 +645,7 @@ export default function Home() {
                   )
                 }
               >
-                calai.app <ArrowUpRight size={13} />
+                <Link2 size={14} /> Try calai.app <ArrowUpRight size={13} />
               </button>
               <button
                 onClick={() => {
@@ -396,17 +653,17 @@ export default function Home() {
                   input.current?.focus();
                 }}
               >
-                My own product <ArrowUpRight size={13} />
+                <Plus size={14} /> My product
               </button>
               <button onClick={() => send('What can you do?')}>
-                What can you do?
+                <CircleHelp size={14} /> What can you do?
               </button>
             </div>
           )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              send();
+              void send();
             }}
             className="composer"
           >
@@ -420,7 +677,7 @@ export default function Home() {
               maxLength={2400}
               onChange={(e) => setDraft(e.target.value)}
               placeholder="Drop a product link, or just say hi…"
-              rows={2}
+              rows={1}
               onKeyDown={(e) => {
                 if (
                   e.key === 'Enter' &&
@@ -428,13 +685,16 @@ export default function Home() {
                   !e.nativeEvent.isComposing
                 ) {
                   e.preventDefault();
-                  send();
+                  void send();
                 }
               }}
             />
             <div className="composer-bottom">
               <span>
-                <span className="status-dot" /> Your next video starts here
+                <span className="status-dot" />{' '}
+                {busy
+                  ? 'Making something good'
+                  : '8 seconds · Vertical · Ready to share'}
               </span>
               {busy ? (
                 <button
@@ -458,16 +718,16 @@ export default function Home() {
             </div>
           </form>
           <div className="below-composer">
-            <span>Real assets. Cleverly assembled.</span>
-            <span>5–10 seconds of main-character energy.</span>
+            <span>Existing media. A fresh point of view.</span>
+            <span>
+              Enter to send <i>·</i> Shift + Enter for a new line
+            </span>
           </div>
         </div>
       </div>
-      <footer className="studio-footer">
-        <span>MADE FOR YOUR NEXT BIG THING</span>
-        <span>✳</span>
-        <span>SMALL CUT. BIG REACTION.</span>
-      </footer>
+      <output className="sr-only">
+        {notice || (copied ? 'Video link copied' : '')}
+      </output>
     </main>
   );
 }

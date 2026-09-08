@@ -1,52 +1,69 @@
 # Cut
 
-Live: https://ugc-cut-huzyefah.jeremy767623.chatgpt.site
+A chat interface that turns a product URL or description into an eight-second vertical video: real photography, three caption beats, licensed music, and a prominent animated reaction GIF.
 
 Repository: https://github.com/Huzyefahwasim/UGC-
 
-A chat-first UGC video studio. Send a product link, have a normal conversation, and get an eight-second vertical video in the same thread.
+The former ChatGPT-hosted deployment has been removed. This version is prepared for **your own Vercel deployment**; it has not been published on your behalf.
 
-## Run locally
+## Local development
 
 Requires Node 22.13+ and npm.
 
-1. `npm ci`
-2. Copy `.env.example` to `.env` and set `OPENAI_API_KEY`. Optional `AI_BASE_URL` and `AI_MODEL` support compatible providers.
-3. `npm run dev`
-4. Open the URL printed by the server.
+1. Run `npm ci`.
+2. Copy `.env.example` to `.env`. Add an AI provider key for full conversation, or leave it blank to try basic product rendering.
+3. Run `npm run dev`.
+4. Open http://localhost:3000.
 
-The key stays on the server. Local storage uses Wrangler's R2 emulator; production uses the Sites-provisioned R2 bucket. For production, configure the same environment keys as site secrets and deploy.
+With no Blob token, development stores videos and the render signing key in ignored `.data/`. No hosting account is needed for local testing. Keep this directory if you want local video links to survive restarts.
 
-## How it works
+## Deploy on Vercel
 
-- React/Vinext chat with one composer and a message thread.
-- The server reads public product-page metadata and bounded visible text. It checks URL schemes, hosts, DNS addresses, redirects, timeouts and response sizes.
-- An OpenAI-compatible language model chooses between conversation and rendering, understands the product, and writes a three-beat caption plan. Product-page text is treated as untrusted data.
-- A small curated library supplies category photography, Google Noto animated GIFs and a Mixkit soundtrack. The model organizes existing media; it never generates media.
-- The browser composites a 540 × 960 canvas with photo motion, captions, decoded GIF frames and a mixed audio track. MediaRecorder produces MP4 when supported, otherwise WebM.
-- The finished bytes are uploaded with a short-lived one-use render ticket. R2 stores them; the app serves a stable public video URL with seeking and download support.
+See [VERCEL.md](VERCEL.md) for the complete setup. Import this GitHub repository as a Next.js project, connect a **public Vercel Blob store**, and configure your AI provider. The build command is `npm run build`. No ChatGPT Sites or Cloudflare runtime is required.
 
-The browser needs to remain open during the eight-second render. No server-side FFmpeg service or paid rendering API is required. This keeps the first version inexpensive and removes queue latency. The app intentionally has no sign-in, billing, timeline editor, or library dashboard. Conversations last for the current page session; video URLs persist independently.
+## What works
 
-## Validation
+- Greetings and questions stay in chat. Product messages trigger a render.
+- Product-page metadata helps choose existing media and write a brief. You can also supply the name and description if a site blocks reading.
+- Videos are 720 × 1280, about eight seconds, with photo motion, animated captions, decoded GIF frames, and an audible soundtrack. MP4 is preferred; browsers without MP4 encoding use WebM.
+- An immediate poster makes the result visible before playback. Download, copy a share link, or draft a punchier/playful revision.
+- Exact quoted hook changes preserve the other captions. A new product does not inherit the previous product's URL.
+- This tab's conversation and draft survive reloads through session storage. New chat clears that local history; closing the tab ends the session. Saved video links remain independent of chat.
+- If uploading fails, the rendered video remains downloadable in the current tab.
 
-`node --experimental-strip-types --test tests/product.test.ts`
+## Architecture
 
-`npx tsc --noEmit`
+Next.js App Router and React. The server reads public websites with bounded HTML, validates addresses and redirects, calls an OpenAI-compatible chat-completions provider when configured, and issues signed 15-minute render permits.
 
-`npm run build`
+The browser composes existing assets into a canvas and records its video plus a Web Audio soundtrack. It must remain visible during rendering. No server renderer, paid video API, or generated media is required.
 
-The tests cover URL extraction, SSRF boundaries, metadata extraction, all asset paths, and genuinely animated GIFs. Browser and exported-media results are recorded in `VERIFICATION.md` after verification.
+The upload API verifies the permit, checks the format and a 4,000,000-byte size ceiling, then writes one immutable video per permit. Vercel Blob serves public playback from its CDN. The app supplies a stable video path and downloads with the correct file extension. Local playback supports byte ranges, HEAD, and ETags.
 
-## Honest limits
+## AI configuration
 
-Without an AI key, a small deterministic fallback handles greetings, help, thanks and readable product URLs. It is not a substitute for the full conversational model. Add a working key for the required ChatGPT-like conversation and product revisions.
+`OPENAI_API_KEY` stays on the server. `AI_BASE_URL` and `AI_MODEL` support an OpenAI-compatible provider; it must support chat completions and JSON response mode.
 
-The soundtrack is licensed stock music, not a verified currently trending song. The GIF library uses expressive animated emoji rather than celebrity/movie memes, keeping source and attribution clear. See `ASSETS.md` for origins and licensing. Videos made here include existing media; they do not imply endorsements by photographed people.
+Without a key, basic mode supports greetings, help, thanks, product links, structured descriptions, and simple hook revisions. It is deterministic and does **not** provide full ChatGPT-like conversation. The interface labels this mode.
 
-Anonymous usage is limited per IP per hour. The R2 counter is a lightweight, non-atomic abuse control, not a strict billing limit. Video uploads are capped at 12 MB. Production at larger scale would need atomic rate limiting, retention/cleanup jobs, a queue/worker renderer for closed-tab operation, and an actively maintained trend catalog.
+## Verification
+
+```sh
+npm test
+npm run typecheck
+npm run build
+npm run lint
+```
+
+Tests cover product intent, URL/email boundaries, metadata quotation, real GIF frames, expiring/tampered tickets, duplicate uploads, size/type checks, byte ranges, downloads, and missing production storage. Exported-media evidence and verification limits are in [VERIFICATION.md](VERIFICATION.md).
+
+## Limits
+
+The music is licensed stock, not a verified currently trending song. The GIFs are Google Noto animations; [ASSETS.md](ASSETS.md) records sources and attribution. Videos do not imply endorsements by photographed people.
+
+The anonymous request backstop is 20 messages per hour **per server process**. It is not a distributed usage or billing limit. Configure Vercel Firewall rules before opening a deployment to substantial traffic. Video storage has no automatic retention job; manage old videos in your Blob dashboard. Vercel/Blob and your AI provider's plan limits apply.
+
+Local file storage is disabled in production to avoid losing uploads in ephemeral serverless storage. A production deployment without `BLOB_READ_WRITE_TOKEN` reports that setup is required.
 
 ## Agent capture
 
-`CAPTURE-TEST.md` records two genuine canary sessions before app implementation. `.agent-logs/` contains raw user prompts and final responses, with UTC timestamps and model identifiers, interleaved with implementation commits. The capture watcher excludes internal approval sessions, tools and reasoning. See `scripts/capture.mjs` and `.codex/config.toml`.
-
+[CAPTURE-TEST.md](CAPTURE-TEST.md) records two real capture canaries completed before application source was written. `.agent-logs/` contains verbatim prompts and final responses, committed at reviewed implementation checkpoints. Capture excludes tools, reasoning, and internal agent sessions. Unattended public pushes are disabled.

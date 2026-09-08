@@ -1,5 +1,7 @@
 # Verification evidence
 
+> Deployment status: the user reported deleting the former ChatGPT Site. URLs in the earlier evidence below are historical and are not the current deliverable. The app is being prepared for user-managed Vercel hosting; no Vercel production deployment has been performed.
+
 ## Capture
 
 - Two real independent Codex sessions, with verbatim canary prompts and final answers in .agent-logs/.

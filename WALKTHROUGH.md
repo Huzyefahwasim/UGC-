@@ -18,7 +18,7 @@ Be candid: the music is licensed stock rather than a live trend feed; the GIFs a
 
 Paste the actual recorded video URL in the submission's walkthrough field. Paste the live URL and public repository URL separately in the links field, clearly labeled.
 
-Live: https://ugc-cut-huzyefah.jeremy767623.chatgpt.site
+Live: use your new Vercel production URL after completing VERCEL.md. The former ChatGPT deployment was removed.
 
 Public repository: https://github.com/Huzyefahwasim/UGC-
 

@@ -3,12 +3,36 @@ import type { VideoPlan } from './types';
 const W = 540,
   H = 960,
   DURATION = 8;
-function image(src: string) {
+function image(src: string, signal: AbortSignal) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
+    signal.throwIfAborted();
     const img = new Image();
-    img.onload = () => resolve(img);
+    const cleanup = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', abort);
+      img.onload = null;
+      img.onerror = null;
+    };
+    const fail = (error: Error) => {
+      cleanup();
+      img.src = '';
+      reject(error);
+    };
+    const abort = () => fail(new DOMException('Stopped', 'AbortError'));
+    const timer = setTimeout(
+      () =>
+        fail(
+          new Error('The background took too long to load. Please try again.'),
+        ),
+      12000,
+    );
+    img.onload = () => {
+      cleanup();
+      resolve(img);
+    };
     img.onerror = () =>
-      reject(new Error('A visual could not load. Please try again.'));
+      fail(new Error('A visual could not load. Please try again.'));
+    signal.addEventListener('abort', abort, { once: true });
     img.src = src;
   });
 }
@@ -27,7 +51,21 @@ function rounded(
 function lines(ctx: CanvasRenderingContext2D, text: string, max: number) {
   const result: string[] = [];
   let line = '';
-  for (const word of text.split(/\s+/)) {
+  const words = text.split(/\s+/).flatMap((word) => {
+    if (ctx.measureText(word).width <= max) return [word];
+    const pieces: string[] = [];
+    let piece = '';
+    for (const char of word) {
+      if (piece && ctx.measureText(piece + char).width > max) {
+        pieces.push(piece);
+        piece = '';
+      }
+      piece += char;
+    }
+    if (piece) pieces.push(piece);
+    return pieces;
+  });
+  for (const word of words) {
     const next = line ? `${line} ${word}` : word;
     if (ctx.measureText(next).width > max && line) {
       result.push(line);
@@ -50,15 +88,20 @@ export async function renderVideo(
   const audio = audioContext || new AudioContext();
   let stream: MediaStream | undefined;
   let source: AudioBufferSourceNode | undefined;
+  const bitmaps: { image: ImageBitmap; end: number }[] = [];
   try {
     update(5, 'Picking the visuals and the perfect reaction…');
     const [photo, gifData, audioData] = await Promise.all([
-      image(plan.background),
-      fetch(plan.gif, { signal }).then((r) => {
+      image(plan.background, signal),
+      fetch(plan.gif, {
+        signal: AbortSignal.any([signal, AbortSignal.timeout(12000)]),
+      }).then((r) => {
         if (!r.ok) throw new Error('The reaction GIF could not load.');
         return r.arrayBuffer();
       }),
-      fetch(plan.audio, { signal }).then((r) => {
+      fetch(plan.audio, {
+        signal: AbortSignal.any([signal, AbortSignal.timeout(12000)]),
+      }).then((r) => {
         if (!r.ok) throw new Error('The soundtrack could not load.');
         return r.arrayBuffer();
       }),
@@ -72,9 +115,9 @@ export async function renderVideo(
     const g = gifCanvas.getContext('2d')!;
     const patchCanvas = document.createElement('canvas');
     const patch = patchCanvas.getContext('2d')!;
-    const bitmaps: { image: ImageBitmap; end: number }[] = [];
     let total = 0;
     for (let i = 0; i < frames.length; i++) {
+      signal.throwIfAborted();
       const frame = frames[i],
         previous = frames[i - 1];
       if (previous?.disposalType === 2)
@@ -99,12 +142,14 @@ export async function renderVideo(
       total += Math.max(frame.delay, 30);
       bitmaps.push({
         image: await createImageBitmap(gifCanvas, {
-          resizeWidth: 300,
-          resizeHeight: 300,
+          resizeWidth: 400,
+          resizeHeight: 400,
         }),
         end: total,
       });
     }
+    if (!bitmaps.length)
+      throw new Error('The reaction GIF was empty. Please try again.');
     const buffer = await audio.decodeAudioData(audioData);
     await audio.resume();
     if (audio.state !== 'running')
@@ -113,9 +158,10 @@ export async function renderVideo(
       );
     update(15, 'Adding captions and lining up the beat…');
     const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
+    canvas.width = 720;
+    canvas.height = 1280;
     const ctx = canvas.getContext('2d', { alpha: false })!;
+    ctx.scale(720 / W, 1280 / H);
     stream = canvas.captureStream(30);
     const destination = audio.createMediaStreamDestination();
     const gain = audio.createGain();
@@ -139,7 +185,7 @@ export async function renderVideo(
       );
     const recorder = new MediaRecorder(stream, {
       mimeType: mime,
-      videoBitsPerSecond: 2200000,
+      videoBitsPerSecond: 3000000,
       audioBitsPerSecond: 128000,
     });
     const chunks: Blob[] = [];
@@ -147,10 +193,11 @@ export async function renderVideo(
       const scene = t < 2.7 ? 0 : t < 5.4 ? 1 : 2,
         local = t - [0, 2.7, 5.4][scene];
       const scale =
-        Math.max(W / photo.width, H / photo.height) * (1.04 + t * 0.011);
+        Math.max(W / photo.width, H / photo.height) *
+        (1.04 + scene * 0.055 + local * 0.015);
       ctx.drawImage(
         photo,
-        (W - photo.width * scale) / 2,
+        (W - photo.width * scale) / 2 + Math.sin(t * 0.45) * 12,
         (H - photo.height * scale) / 2,
         photo.width * scale,
         photo.height * scale,
@@ -171,20 +218,20 @@ export async function renderVideo(
       ctx.font = 'bold 16px Arial';
       ctx.fillText(
         scene === 0
-          ? 'POV: YOU FOUND IT'
+          ? 'THE FIND'
           : scene === 1
-            ? 'WAIT FOR IT…'
-            : 'YOUR NEXT OBSESSION',
+            ? 'THE GOOD PART'
+            : 'TAKE A LOOK',
         0,
         3,
       );
       ctx.restore();
       ctx.save();
-      ctx.globalAlpha = Math.min(1, local * 7);
+      ctx.globalAlpha = Math.min(1, 0.35 + local * 7);
       ctx.translate(0, Math.max(0, 1 - local * 6) * 18);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      let size = 42;
+      let size = 46;
       ctx.font = `900 ${size}px Arial`;
       let textLines = lines(ctx, plan.captions[scene], W - 90);
       while (textLines.length > 3 && size > 25) {
@@ -198,35 +245,35 @@ export async function renderVideo(
         ctx.strokeStyle = 'rgba(0,0,0,.7)';
         ctx.lineWidth = 7;
         ctx.strokeText(line, W / 2, y);
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle =
+          i === textLines.length - 1 && textLines.length > 1
+            ? plan.accent
+            : '#fff';
         ctx.fillText(line, W / 2, y);
       });
       ctx.restore();
       const frame =
         bitmaps.find((f) => f.end > (t * 1000) % total) || bitmaps[0];
-      const bounce = 1 + Math.sin(t * Math.PI * 3) * 0.025;
+      const bounce = 1 + Math.sin(t * Math.PI * 3) * 0.035;
       ctx.save();
       ctx.translate(W / 2 + Math.sin(t * 1.8) * 12, 620);
       ctx.rotate(Math.sin(t * 2) * 0.05);
       ctx.scale(bounce, bounce);
       ctx.shadowColor = 'rgba(0,0,0,.25)';
       ctx.shadowBlur = 25;
-      ctx.drawImage(frame.image, -150, -150, 300, 300);
+      ctx.drawImage(frame.image, -165, -165, 330, 330);
       ctx.restore();
       ctx.textAlign = 'center';
       ctx.fillStyle = plan.accent;
       ctx.font = 'bold 25px Arial';
-      const brand =
-        plan.product.length > 28
-          ? plan.product.slice(0, 27) + '…'
-          : plan.product;
-      ctx.fillText(brand, W / 2, 820);
+      ctx.fillText(plan.product, W / 2, 820, W - 80);
       ctx.fillStyle = '#fff';
       ctx.font = '14px Arial';
       ctx.fillText(
         plan.url ? new URL(plan.url).hostname : 'Meet your new favorite.',
         W / 2,
         850,
+        W - 80,
       );
       ctx.fillStyle = 'rgba(255,255,255,.28)';
       rounded(ctx, 45, 904, 450, 3, 2);
@@ -241,13 +288,24 @@ export async function renderVideo(
       );
     }
     signal.throwIfAborted();
-    draw(0);
+    draw(0.16);
+    const poster = canvas.toDataURL('image/jpeg', 0.85);
     const blob = await new Promise<Blob>((resolve, reject) => {
-      let timer: ReturnType<typeof setInterval>;
       const start = performance.now();
       const cleanup = () => {
         clearInterval(timer);
         signal.removeEventListener('abort', abort);
+        document.removeEventListener('visibilitychange', visibility);
+      };
+      const visibility = () => {
+        if (document.visibilityState !== 'hidden') return;
+        cleanup();
+        if (recorder.state !== 'inactive') recorder.stop();
+        reject(
+          new Error(
+            'Rendering paused when this tab was hidden. Keep it visible and try again.',
+          ),
+        );
       };
       const abort = () => {
         cleanup();
@@ -268,11 +326,12 @@ export async function renderVideo(
         resolve(new Blob(chunks, { type: recorder.mimeType }));
       };
       signal.addEventListener('abort', abort, { once: true });
+      document.addEventListener('visibilitychange', visibility);
       recorder.start(250);
       source!.start(0, 0, DURATION);
       gain.gain.setValueAtTime(0.6, audio.currentTime + DURATION - 0.5);
       gain.gain.linearRampToValueAtTime(0, audio.currentTime + DURATION);
-      timer = setInterval(() => {
+      const timer = setInterval(() => {
         const t = (performance.now() - start) / 1000;
         draw(Math.min(t, DURATION));
         update(
@@ -285,11 +344,11 @@ export async function renderVideo(
         }
       }, 1000 / 30);
     });
-    bitmaps.forEach((f) => f.image.close());
     if (blob.size < 10000)
       throw new Error('The video was incomplete. Please try again.');
-    return blob;
+    return { blob, poster };
   } finally {
+    bitmaps.forEach((f) => f.image.close());
     try {
       source?.stop();
     } catch {}

@@ -7,6 +7,8 @@ dist/
 .capture-cli-*.jsonl
 .audit-local.json
 .artifacts/
+.data/
+.dev.vars*
 # dependencies
 /node_modules
 /.pnp
