@@ -13,7 +13,9 @@ export async function GET() {
   return Response.json(
     {
       status: ready ? 'ok' : 'setup_required',
-      aiConfigured: !!runtime().OPENAI_API_KEY,
+      aiConfigured: !!runtime().apiKey,
+      aiProvider: runtime().provider,
+      aiModel: runtime().model,
       generationConfigured: generationReady,
       generationProvider: 'ltx',
       generationAuthenticated: authenticated(),

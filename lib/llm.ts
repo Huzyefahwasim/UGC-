@@ -1,0 +1,77 @@
+import { RequestError, readLimited, type runtime } from './server.ts';
+
+type Message = { role: 'system' | 'user' | 'assistant'; content: string };
+
+export async function creativeCompletion(
+  settings: ReturnType<typeof runtime>,
+  messages: Message[],
+  send: typeof fetch = fetch,
+): Promise<unknown> {
+  if (!settings.apiKey)
+    throw new RequestError('Connect a chat API key first.', 503);
+  const label =
+    settings.provider === 'gemini' ? 'Gemini' : 'The creative assistant';
+  let response: Response;
+  try {
+    response = await send(`${settings.endpoint}/chat/completions`, {
+      method: 'POST',
+      redirect: 'error',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${settings.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: settings.model,
+        temperature: settings.provider === 'gemini' ? 1 : 0.75,
+        max_tokens: settings.provider === 'gemini' ? 4096 : 1100,
+        ...(settings.provider === 'gemini' ? { reasoning_effort: 'low' } : {}),
+        response_format: { type: 'json_object' },
+        messages,
+      }),
+      signal: AbortSignal.timeout(35000),
+    });
+  } catch {
+    throw new RequestError(
+      `${label} couldn’t connect. Please try again shortly.`,
+      503,
+    );
+  }
+  if (!response.ok) {
+    if (response.status === 429)
+      throw new RequestError(
+        `${label} reached a usage limit. Please wait and try again, or check your API quota.`,
+        429,
+      );
+    if ([401, 403].includes(response.status))
+      throw new RequestError(
+        `${label} access was rejected. Check the server API key and its permissions.`,
+        503,
+      );
+    throw new RequestError(
+      `${label} couldn’t complete the request. Check the configured model and try again.`,
+      503,
+    );
+  }
+  try {
+    const data = JSON.parse(
+      new TextDecoder().decode(await readLimited(response, 100000)),
+    );
+    const choice = data.choices?.[0];
+    if (choice?.finish_reason !== 'stop') throw new Error('Incomplete output');
+    const result = JSON.parse(choice.message?.content || '');
+    if (
+      !result ||
+      typeof result !== 'object' ||
+      Array.isArray(result) ||
+      !['chat', 'render'].includes(result.kind) ||
+      typeof result.reply !== 'string'
+    )
+      throw new Error('Invalid brief');
+    return result;
+  } catch {
+    throw new RequestError(
+      'The creative brief didn’t come through completely. Please try again.',
+      502,
+    );
+  }
+}

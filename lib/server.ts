@@ -1,10 +1,29 @@
 import { createHash } from 'node:crypto';
 
-export const runtime = () => ({
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-  AI_BASE_URL: process.env.AI_BASE_URL,
-  AI_MODEL: process.env.AI_MODEL,
-});
+export function runtime(env: Record<string, string | undefined> = process.env) {
+  // Gemini is the default. Legacy keys never silently select a paid provider.
+  const provider = env.AI_PROVIDER?.trim() || 'gemini';
+  if (!['gemini', 'openai'].includes(provider))
+    throw new Error('AI_PROVIDER must be gemini or openai.');
+  return {
+    provider,
+    apiKey: (provider === 'gemini'
+      ? env.GEMINI_API_KEY
+      : env.OPENAI_API_KEY
+    )?.trim(),
+    endpoint:
+      provider === 'gemini'
+        ? 'https://generativelanguage.googleapis.com/v1beta/openai'
+        : (env.AI_BASE_URL?.trim() || 'https://api.openai.com/v1').replace(
+            /\/$/,
+            '',
+          ),
+    model:
+      provider === 'gemini'
+        ? env.GEMINI_MODEL?.trim() || 'gemini-3.8-flash'
+        : env.AI_MODEL?.trim() || 'gpt-4.1-mini',
+  };
+}
 
 export class RequestError extends Error {
   status: number;

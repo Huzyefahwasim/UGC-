@@ -32,7 +32,7 @@ See [DIRECTION.md](DIRECTION.md) for prompt construction and [ASSETS.md](ASSETS.
 
 ## Quality and context
 
-A connected OpenAI-compatible chat provider writes bespoke shot directions from the conversation and webpage. Without it, the built-in deterministic director recognizes product contexts and camera/light preferences. It is useful for basic briefs but is not a general conversational language model.
+A connected Gemini chat provider writes bespoke shot directions from the conversation and webpage. Without it, the built-in deterministic director recognizes product contexts and camera/light preferences. It is useful for basic briefs but is not a general conversational language model.
 
 The main engine is the official Lightricks LTX-Video 0.9.8 13B distilled Space: 576 × 1024 generation, six seconds requested, multi-scale texture enhancement and portrait framing. Final exports are 720 × 1280; this is upscaling, not native 720p footage. The model may still produce visual artifacts. Its free demo is not guaranteed production infrastructure.
 
@@ -44,9 +44,14 @@ The main engine is the official Lightricks LTX-Video 0.9.8 13B distilled Space: 
 | `RENDER_SIGNING_SECRET` | Required stable random secret for tickets and encrypted records |
 | `STUDIO_ACCESS_CODE` | Required in production to protect the shared GPU quota |
 | `BLOB_READ_WRITE_TOKEN` | Public Vercel Blob store for production records and finished videos |
-| `OPENAI_API_KEY` | Optional separate chat and direction provider |
+| `AI_PROVIDER` | `gemini` by default; `openai` explicitly selects the legacy provider |
+| `GEMINI_API_KEY` | Google AI Studio key for conversation, captions and shot direction |
+| `GEMINI_MODEL` | Defaults to `gemini-3.8-flash` |
+| `OPENAI_API_KEY` | Only used with `AI_PROVIDER=openai` |
 | `AI_BASE_URL` | OpenAI-compatible base URL |
 | `AI_MODEL` | Chat model ID |
+
+Create a Gemini key at https://aistudio.google.com/apikey and save it as `GEMINI_API_KEY` in `.env`. Requests go directly to Google using its OpenAI-compatible protocol, without OpenAI credentials or billing. Free-tier quotas depend on your Google project; enabling paid billing changes costs. See [Google pricing](https://ai.google.dev/gemini-api/docs/pricing). There is no automatic provider switch on quota errors. Without a Gemini key, chat uses the basic fallback. `/api/health` reports configuration, not remote key validity.
 
 Keep keys server-side and out of Git. Never prefix secrets with `NEXT_PUBLIC_`. Changing the signing secret invalidates existing jobs.
 

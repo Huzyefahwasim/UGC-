@@ -7,7 +7,7 @@ The app uses LTX-Video through the free Hugging Face demo. No Vercel project or 
 3. Connect a **public Vercel Blob** store. Confirm `BLOB_READ_WRITE_TOKEN` is available to the deployment.
 4. Set a stable random `RENDER_SIGNING_SECRET` and a private `STUDIO_ACCESS_CODE`.
 5. Add `HUGGINGFACE_TOKEN` from https://huggingface.co/settings/tokens for your free account allowance. Anonymous mode is smaller and unreliable for a shared public app.
-6. Optionally set `OPENAI_API_KEY`, `AI_BASE_URL` and `AI_MODEL` for normal AI conversation and bespoke shot directions.
+6. Set `AI_PROVIDER=gemini`, `GEMINI_API_KEY` and `GEMINI_MODEL=gemini-3.8-flash` for Gemini conversation and bespoke shot directions. Create the key in Google AI Studio. Keep your Google project on the free tier to avoid paid API usage.
 7. Deploy with Fluid compute enabled. The generation route declares `maxDuration = 300`; it holds one Gradio stream with a four-minute deadline.
 8. Disable Vercel Deployment Protection for the production site if it must open to signed-out reviewers. Give reviewers the studio code separately.
 
