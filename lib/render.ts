@@ -75,6 +75,23 @@ function lines(ctx: CanvasRenderingContext2D, text: string, max: number) {
   if (line) result.push(line);
   return result;
 }
+const clamp = (value: number) => Math.max(0, Math.min(1, value));
+const easeOut = (value: number) => 1 - Math.pow(1 - clamp(value), 3);
+function spring(value: number) {
+  const t = clamp(value) - 1;
+  return 1 + 2.4 * t * t * t + 1.4 * t * t;
+}
+function fittedText(
+  ctx: CanvasRenderingContext2D,
+  value: string,
+  width: number,
+) {
+  if (ctx.measureText(value).width <= width) return value;
+  let result = value;
+  while (result && ctx.measureText(`${result}…`).width > width)
+    result = result.slice(0, -1);
+  return `${result.trimEnd()}…`;
+}
 export async function renderVideo(
   plan: VideoPlan,
   update: (progress: number, text: string) => void,
@@ -189,107 +206,249 @@ export async function renderVideo(
       audioBitsPerSecond: 128000,
     });
     const chunks: Blob[] = [];
-    function draw(t: number) {
-      const scene = t < 2.7 ? 0 : t < 5.4 ? 1 : 2,
-        local = t - [0, 2.7, 5.4][scene];
-      const scale =
-        Math.max(W / photo.width, H / photo.height) *
-        (1.04 + scene * 0.055 + local * 0.015);
+    const ivory = '#f7f5e9';
+    const lime = '#d3fb79';
+    const starts = [0, 2.65, 5.3];
+    const lengths = [2.65, 2.65, 2.7];
+    const titles = ['A GOOD FIND', 'HERE’S THE THING', 'YOUR NEXT FAVORITE'];
+    const captionLayouts = plan.captions.map((caption) => {
+      let size = 56;
+      ctx.font = `900 ${size}px "Arial Black", Arial, sans-serif`;
+      let rows = lines(ctx, caption, W - 100);
+      while (rows.length > 4 && size > 26) {
+        size -= 2;
+        ctx.font = `900 ${size}px "Arial Black", Arial, sans-serif`;
+        rows = lines(ctx, caption, W - 100);
+      }
+      return { size, rows, lineHeight: size * 1.1 };
+    });
+    // The soundtrack itself supplies the pulse, so the reaction and equalizer
+    // follow the music instead of moving at an unrelated, arbitrary tempo.
+    const samples = buffer.getChannelData(0);
+    const sampleWindow = Math.max(1, Math.floor(buffer.sampleRate / 30));
+    const levels = Array.from({ length: DURATION * 30 }, (_, frame) => {
+      const first = frame * sampleWindow;
+      const last = Math.min(first + sampleWindow, samples.length);
+      let sum = 0;
+      let count = 0;
+      for (let i = first; i < last; i += 4) {
+        sum += samples[i] * samples[i];
+        count++;
+      }
+      return Math.sqrt(sum / Math.max(1, count));
+    });
+    const peak = Math.max(...levels, 0.001);
+    const levelAt = (t: number) =>
+      clamp(
+        (levels[Math.min(levels.length - 1, Math.floor(t * 30))] || 0) / peak,
+      );
+    const domain = plan.url
+      ? new URL(plan.url).hostname.replace(/^www\./, '')
+      : 'Meet your new favorite.';
+
+    function photograph(scene: number, local: number) {
+      const progress = easeOut(local / lengths[scene]);
+      const zoom = [
+        1.045 + progress * 0.075,
+        1.155 - progress * 0.045,
+        1.085 + progress * 0.065,
+      ][scene];
+      const scale = Math.max(W / photo.width, H / photo.height) * zoom;
+      const width = photo.width * scale;
+      const height = photo.height * scale;
+      const pan = [-0.16 + progress * 0.2, 0.16 - progress * 0.2, -0.08][scene];
       ctx.drawImage(
         photo,
-        (W - photo.width * scale) / 2 + Math.sin(t * 0.45) * 12,
-        (H - photo.height * scale) / 2,
-        photo.width * scale,
-        photo.height * scale,
+        (W - width) / 2 + ((width - W) / 2) * pan,
+        (H - height) / 2 + ((height - H) / 2) * (0.12 - progress * 0.16),
+        width,
+        height,
       );
+    }
+
+    function draw(t: number) {
+      const scene = t < starts[1] ? 0 : t < starts[2] ? 1 : 2;
+      const local = t - starts[scene];
+      const remaining = lengths[scene] - local;
+      const level = levelAt(t);
+      photograph(scene, local);
+      if (scene > 0 && local < 0.2) {
+        ctx.save();
+        ctx.globalAlpha = 1 - easeOut(local / 0.2);
+        photograph(scene - 1, lengths[scene - 1]);
+        ctx.restore();
+      }
       const shade = ctx.createLinearGradient(0, 0, 0, H);
-      shade.addColorStop(0, 'rgba(0,0,0,.7)');
-      shade.addColorStop(0.5, 'rgba(0,0,0,.1)');
-      shade.addColorStop(1, 'rgba(0,0,0,.68)');
+      shade.addColorStop(0, 'rgba(9,12,10,.78)');
+      shade.addColorStop(0.34, 'rgba(9,12,10,.55)');
+      shade.addColorStop(0.58, 'rgba(9,12,10,.05)');
+      shade.addColorStop(0.8, 'rgba(9,12,10,.44)');
+      shade.addColorStop(1, 'rgba(9,12,10,.92)');
       ctx.fillStyle = shade;
       ctx.fillRect(0, 0, W, H);
+
+      // Keep the labels, captions, reaction and product inside the same safe
+      // area throughout all three beats; the motion comes from their entrances.
       ctx.save();
-      ctx.translate(W / 2, 143);
-      ctx.rotate(-0.045);
-      ctx.fillStyle = plan.accent;
-      rounded(ctx, -116, -22, 232, 39, 7);
-      ctx.fillStyle = '#20241a';
-      ctx.textAlign = 'center';
-      ctx.font = 'bold 16px Arial';
-      ctx.fillText(
-        scene === 0
-          ? 'THE FIND'
-          : scene === 1
-            ? 'THE GOOD PART'
-            : 'TAKE A LOOK',
-        0,
-        3,
-      );
-      ctx.restore();
-      ctx.save();
-      ctx.globalAlpha = Math.min(1, 0.35 + local * 7);
-      ctx.translate(0, Math.max(0, 1 - local * 6) * 18);
-      ctx.textAlign = 'center';
+      ctx.globalAlpha = easeOut(local / 0.2);
+      ctx.translate(0, (1 - easeOut(local / 0.3)) * 10);
+      ctx.fillStyle = 'rgba(12,16,12,.56)';
+      rounded(ctx, 34, 62, 266, 38, 19);
+      ctx.fillStyle = lime;
+      rounded(ctx, 49, 77, 8, 8, 4);
+      ctx.fillStyle = ivory;
+      ctx.font = '700 13px Arial, sans-serif';
+      ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      let size = 46;
-      ctx.font = `900 ${size}px Arial`;
-      let textLines = lines(ctx, plan.captions[scene], W - 90);
-      while (textLines.length > 3 && size > 25) {
-        size -= 2;
-        ctx.font = `900 ${size}px Arial`;
-        textLines = lines(ctx, plan.captions[scene], W - 90);
-      }
-      textLines.slice(0, 4).forEach((line, i) => {
-        const y = 230 + i * (size + 10);
-        ctx.lineJoin = 'round';
-        ctx.strokeStyle = 'rgba(0,0,0,.7)';
-        ctx.lineWidth = 7;
-        ctx.strokeText(line, W / 2, y);
-        ctx.fillStyle =
-          i === textLines.length - 1 && textLines.length > 1
-            ? plan.accent
-            : '#fff';
-        ctx.fillText(line, W / 2, y);
-      });
+      ctx.fillText(titles[scene], 70, 81);
+      ctx.fillStyle = 'rgba(247,245,233,.14)';
+      rounded(ctx, W - 92, 62, 58, 38, 19);
+      ctx.fillStyle = ivory;
+      ctx.textAlign = 'center';
+      ctx.fillText(`0${scene + 1}`, W - 63, 81);
       ctx.restore();
+
+      const layout = captionLayouts[scene];
+      const captionExit = scene < 2 ? clamp(remaining / 0.14) : 1;
+      const captionTop =
+        255 - ((layout.rows.length - 1) * layout.lineHeight) / 2;
+      layout.rows.forEach((line, i) => {
+        const arrival = (local - i * 0.055) / 0.32;
+        const reveal = easeOut(arrival);
+        const last = i === layout.rows.length - 1;
+        ctx.save();
+        ctx.globalAlpha = reveal * captionExit;
+        ctx.translate(
+          W / 2,
+          captionTop + i * layout.lineHeight + (1 - reveal) * 28,
+        );
+        const scale = 0.96 + spring(arrival) * 0.04;
+        ctx.scale(scale, scale);
+        ctx.font = `900 ${layout.size}px "Arial Black", Arial, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if (last) {
+          ctx.rotate(-0.028);
+          const width = ctx.measureText(line).width + 24;
+          ctx.fillStyle = lime;
+          rounded(
+            ctx,
+            -width / 2,
+            -layout.size * 0.56,
+            width,
+            layout.size * 1.12,
+            5,
+          );
+          ctx.fillStyle = '#151a10';
+          ctx.fillText(line, 0, 1);
+        } else {
+          ctx.shadowColor = 'rgba(0,0,0,.3)';
+          ctx.shadowBlur = 12;
+          ctx.shadowOffsetY = 3;
+          ctx.fillStyle = ivory;
+          ctx.fillText(line, 0, 0);
+        }
+        ctx.restore();
+      });
+
       const frame =
         bitmaps.find((f) => f.end > (t * 1000) % total) || bitmaps[0];
-      const bounce = 1 + Math.sin(t * Math.PI * 3) * 0.035;
+      const arrival = spring(local / 0.52);
+      const pulse = 1 + level * 0.024;
+      const reactionY = 593 + Math.sin(t * 1.6) * 6;
       ctx.save();
-      ctx.translate(W / 2 + Math.sin(t * 1.8) * 12, 620);
-      ctx.rotate(Math.sin(t * 2) * 0.05);
-      ctx.scale(bounce, bounce);
-      ctx.shadowColor = 'rgba(0,0,0,.25)';
-      ctx.shadowBlur = 25;
-      ctx.drawImage(frame.image, -165, -165, 330, 330);
+      ctx.translate(W / 2 + Math.sin(t * 1.5) * 8, reactionY);
+      const halo = ctx.createRadialGradient(0, 5, 75, 0, 5, 224);
+      halo.addColorStop(0, 'rgba(8,12,7,.22)');
+      halo.addColorStop(0.64, 'rgba(8,12,7,.12)');
+      halo.addColorStop(1, 'rgba(8,12,7,0)');
+      ctx.fillStyle = halo;
+      ctx.fillRect(-224, -219, 448, 448);
+      ctx.rotate(Math.sin(t * 1.8) * 0.025 + (1 - arrival) * -0.09);
+      const reactionScale = (0.86 + arrival * 0.14) * pulse;
+      ctx.scale(reactionScale, reactionScale);
+      ctx.shadowColor = 'rgba(0,0,0,.28)';
+      ctx.shadowBlur = 24;
+      ctx.shadowOffsetY = 12;
+      ctx.drawImage(frame.image, -180, -180, 360, 360);
       ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = easeOut((local - 0.22) / 0.22);
+      ctx.translate(370, 739 + (1 - easeOut((local - 0.22) / 0.28)) * 12);
+      ctx.rotate(0.055);
+      ctx.fillStyle = ivory;
+      rounded(ctx, -77, -16, 154, 32, 4);
+      ctx.fillStyle = '#181d14';
+      ctx.font = '700 12px Arial, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillStyle = plan.accent;
-      ctx.font = 'bold 25px Arial';
-      ctx.fillText(plan.product, W / 2, 820, W - 80);
-      ctx.fillStyle = '#fff';
-      ctx.font = '14px Arial';
-      ctx.fillText(
-        plan.url ? new URL(plan.url).hostname : 'Meet your new favorite.',
-        W / 2,
-        850,
-        W - 80,
-      );
-      ctx.fillStyle = 'rgba(255,255,255,.28)';
-      rounded(ctx, 45, 904, 450, 3, 2);
-      ctx.fillStyle = plan.accent;
-      rounded(ctx, 45, 904, 450 * Math.min(t / DURATION, 1), 3, 2);
-      ctx.fillStyle = 'rgba(255,255,255,.7)';
-      ctx.font = '9px Arial';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('THE REACTION ↑', 0, 1);
+      ctx.restore();
+
+      const brandArrival = easeOut(t / 0.45);
+      ctx.save();
+      ctx.globalAlpha = brandArrival;
+      ctx.translate(0, (1 - brandArrival) * 20);
+      ctx.fillStyle = 'rgba(15,20,13,.89)';
+      rounded(ctx, 34, 801, W - 68, 83, 16);
+      ctx.strokeStyle = 'rgba(247,245,233,.19)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = ivory;
+      ctx.font = '700 25px Arial, sans-serif';
+      ctx.fillText(fittedText(ctx, plan.product, W - 182), 54, 828);
+      ctx.fillStyle = 'rgba(247,245,233,.68)';
+      ctx.font = '14px Arial, sans-serif';
+      ctx.fillText(fittedText(ctx, domain, W - 182), 54, 858);
+      ctx.fillStyle = lime;
+      rounded(ctx, W - 103, 820, 46, 46, 23);
+      ctx.strokeStyle = '#171d10';
+      ctx.lineWidth = 2.3;
+      ctx.lineCap = 'round';
+      const arrowShift =
+        scene === 2 ? Math.sin(clamp(local / 0.6) * Math.PI) * 3 : 0;
+      ctx.beginPath();
+      ctx.moveTo(W - 88 - arrowShift, 851 + arrowShift);
+      ctx.lineTo(W - 73 + arrowShift, 836 - arrowShift);
+      ctx.moveTo(W - 87 + arrowShift, 836 - arrowShift);
+      ctx.lineTo(W - 73 + arrowShift, 836 - arrowShift);
+      ctx.lineTo(W - 73 + arrowShift, 850 - arrowShift);
+      ctx.stroke();
+      ctx.restore();
+
+      const segmentWidth = 123;
+      for (let i = 0; i < 3; i++) {
+        const x = 34 + i * (segmentWidth + 7);
+        ctx.fillStyle = 'rgba(247,245,233,.25)';
+        rounded(ctx, x, 906, segmentWidth, 3, 1.5);
+        const progress = clamp((t - starts[i]) / lengths[i]);
+        if (progress > 0) {
+          ctx.fillStyle = lime;
+          rounded(ctx, x, 906, segmentWidth * progress, 3, 1.5);
+        }
+      }
+      for (let i = 0; i < 7; i++) {
+        const bar = 3 + levelAt(Math.max(0, t - i * 0.035)) * (i % 2 ? 13 : 19);
+        ctx.fillStyle = i < 4 ? lime : 'rgba(247,245,233,.6)';
+        rounded(ctx, 450 + i * 8, 907 - bar / 2, 3, bar, 1.5);
+      }
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(247,245,233,.65)';
+      ctx.font = '8.5px Arial, sans-serif';
       ctx.fillText(
         'Animated emoji: Google Noto · CC BY 4.0 · resized / composited',
         W / 2,
-        927,
+        934,
       );
     }
     signal.throwIfAborted();
-    draw(0.16);
+    draw(0.65);
     const poster = canvas.toDataURL('image/jpeg', 0.85);
+    draw(0);
     const blob = await new Promise<Blob>((resolve, reject) => {
       const start = performance.now();
       const cleanup = () => {

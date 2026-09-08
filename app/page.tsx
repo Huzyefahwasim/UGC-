@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
 import {
   ArrowUp,
   ArrowUpRight,
@@ -9,8 +8,6 @@ import {
   Download,
   LoaderCircle,
   Scissors,
-  Film,
-  Music2,
   Plus,
   RotateCcw,
   Sparkles,
@@ -18,9 +15,20 @@ import {
   Volume2,
   CircleHelp,
   X,
+  Clapperboard,
+  MonitorPlay,
+  WandSparkles,
 } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
+import { StudioWelcome } from './studio-welcome';
 import type { VideoPlan } from '@/lib/types';
+type GenerationJob = {
+  id: string;
+  ticket: string;
+  plan: VideoPlan;
+  prompt: string;
+  startedAt: number;
+  recoveryNote?: string;
+};
 type Message = {
   id: string;
   role: 'user' | 'assistant';
@@ -31,6 +39,7 @@ type Message = {
     poster?: string;
     local?: boolean;
     format?: 'mp4' | 'webm';
+    provider?: 'higgsfield';
   };
   error?: boolean;
   retryPrompt?: string;
@@ -40,19 +49,21 @@ export default function Home() {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
-  const [progress, setProgress] = useState(0);
+  const [pendingJob, setPendingJob] = useState<GenerationJob | null>(null);
+  const [generationReady, setGenerationReady] = useState<boolean | null>(null);
+  const [accessRequired, setAccessRequired] = useState(false);
+  const [accessCode, setAccessCode] = useState('');
+  const [jobPhase, setJobPhase] = useState('');
   const [copied, setCopied] = useState('');
   const [hydrated, setHydrated] = useState(false);
   const [aiReady, setAiReady] = useState<boolean | null>(null);
   const [activePlan, setActivePlan] = useState<VideoPlan | null>(null);
   const [notice, setNotice] = useState('');
   const busyRef = useRef(false);
-  const objectUrls = useRef<string[]>([]);
   const end = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const cancel = useRef<AbortController | null>(null);
   useEffect(() => {
-    const urls = objectUrls.current;
     try {
       const saved = JSON.parse(sessionStorage.getItem('cut-chat-v1') || '{}');
       if (Array.isArray(saved.messages))
@@ -68,16 +79,25 @@ export default function Home() {
             )
             .slice(-60),
         );
+      if (
+        saved.pendingJob?.id &&
+        saved.pendingJob?.ticket &&
+        saved.pendingJob?.plan
+      )
+        setPendingJob(saved.pendingJob);
       if (typeof saved.draft === 'string') setDraft(saved.draft.slice(0, 2400));
     } catch {}
     setHydrated(true);
     fetch('/api/health')
       .then((r) => r.json())
-      .then((data) => setAiReady(!!data.aiConfigured))
+      .then((data) => {
+        setAiReady(!!data.aiConfigured);
+        setGenerationReady(!!data.generationConfigured);
+        setAccessRequired(!!data.generationAccessRequired);
+      })
       .catch(() => {});
     return () => {
       cancel.current?.abort();
-      urls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
   useEffect(() => {
@@ -87,6 +107,7 @@ export default function Home() {
         'cut-chat-v1',
         JSON.stringify({
           draft,
+          pendingJob,
           messages: messages.map((m) => ({
             ...m,
             video: m.video?.local
@@ -96,13 +117,14 @@ export default function Home() {
                     url: m.video.url,
                     plan: m.video.plan,
                     format: m.video.format,
+                    provider: m.video.provider,
                   }
                 : undefined,
           })),
         }),
       );
     } catch {}
-  }, [messages, draft, hydrated]);
+  }, [messages, draft, hydrated, pendingJob]);
   useEffect(() => {
     if (!input.current) return;
     input.current.style.height = 'auto';
@@ -157,17 +179,196 @@ export default function Home() {
   }, []);
   useEffect(() => {
     if (messages.length || busy)
-      end.current?.scrollIntoView({ behavior: 'smooth' });
+      end.current?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? 'instant'
+          : 'smooth',
+      });
   }, [messages, busy]);
+  async function watchGeneration(job: GenerationJob, signal: AbortSignal) {
+    setActivePlan(job.plan);
+    setJobPhase('queued');
+    setStatus('Your video is in the Higgsfield queue…');
+    // eslint-disable-next-line react/react-compiler -- This clock is read in an async event handler, never during render.
+    const deadline = Date.now() + 20 * 60 * 1000;
+    let failures = 0;
+    // eslint-disable-next-line react/react-compiler -- Polling runs only after a user submits or resumes a job.
+    while (Date.now() < deadline) {
+      signal.throwIfAborted();
+      try {
+        const response = await fetch('/api/generations/' + job.id, {
+          headers: { 'X-Generation-Ticket': job.ticket },
+          signal: AbortSignal.any([signal, AbortSignal.timeout(85000)]),
+          cache: 'no-store',
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          if (response.status === 403) {
+            setPendingJob(null);
+            setMessages((items) => [
+              ...items,
+              {
+                id: crypto.randomUUID(),
+                role: 'assistant',
+                error: true,
+                text: 'This generation session expired. Find your video in Higgsfield Cloud before starting a new cut.',
+              },
+            ]);
+            return;
+          }
+          throw new Error(result.error || 'Could not check generation.');
+        }
+        failures = 0;
+        setJobPhase(result.status);
+        if (result.status === 'completed' && result.url) {
+          setMessages((items) => [
+            ...items,
+            {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              text:
+                'Your Higgsfield video for ' +
+                job.plan.product +
+                ' is ready. Play it with sound on.',
+              video: {
+                url: result.url,
+                plan: job.plan,
+                format: 'mp4',
+                provider: 'higgsfield',
+              },
+            },
+          ]);
+          setPendingJob(null);
+          return;
+        }
+        if (['failed', 'nsfw', 'cancelled'].includes(result.status)) {
+          setPendingJob(null);
+          setMessages((items) => [
+            ...items,
+            {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              error: true,
+              text:
+                result.error ||
+                (result.status === 'nsfw'
+                  ? 'Higgsfield could not generate this brief under its content rules. Please try a different direction.'
+                  : 'Higgsfield did not complete this video. You can check the job in Higgsfield Cloud.'),
+            },
+          ]);
+          return;
+        }
+        if (result.status === 'not_started') {
+          setStatus(
+            'The submission did not start. Resume to submit this same job safely.',
+          );
+          return;
+        }
+        if (
+          result.status === 'submitting' &&
+          // eslint-disable-next-line react/react-compiler -- Async job timeout, not render-time state.
+          Date.now() - job.startedAt > 90000
+        ) {
+          setStatus(
+            'Submission could not be confirmed. Check Higgsfield Cloud before creating another video.',
+          );
+          return;
+        }
+        setStatus(
+          result.status === 'in_progress'
+            ? 'Higgsfield is generating your footage and audio…'
+            : result.status === 'submitting'
+              ? 'Sending your creative brief to Higgsfield…'
+              : 'Your video is in the Higgsfield queue…',
+        );
+      } catch (error) {
+        if (signal.aborted) throw error;
+        failures++;
+        if (failures >= 4)
+          throw new Error(
+            'Could not check this job right now. Resume below; your generation may still be running.',
+          );
+        setStatus('Reconnecting to your generation…');
+      }
+      await new Promise<void>((resolve, reject) => {
+        const abort = () => {
+          clearTimeout(timer);
+          reject(new DOMException('Stopped checking', 'AbortError'));
+        };
+        const timer = setTimeout(() => {
+          signal.removeEventListener('abort', abort);
+          resolve();
+        }, 4000);
+        signal.addEventListener('abort', abort, { once: true });
+      });
+    }
+    setStatus(
+      'This generation is taking longer than usual. Resume to check again.',
+    );
+  }
+  async function runGeneration(
+    job: GenerationJob,
+    controller: AbortController,
+  ) {
+    const response = await fetch('/api/generations', {
+      method: 'POST',
+      headers: {
+        'X-Generation-Ticket': job.ticket,
+        'X-Studio-Access': accessCode,
+      },
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(175000)]),
+    });
+    if (!response.ok) {
+      const result = await response.json();
+      if (response.status === 403) {
+        setPendingJob(null);
+        setMessages((items) => [
+          ...items,
+          {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            error: true,
+            text: 'This generation session expired. Find your video in Higgsfield Cloud before starting a new cut.',
+          },
+        ]);
+        return;
+      }
+      throw new Error(result.error || 'Could not start generation.');
+    }
+    await watchGeneration(job, controller.signal);
+  }
+  async function resumeGeneration() {
+    if (!pendingJob || busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    const controller = new AbortController();
+    cancel.current = controller;
+    try {
+      await runGeneration(pendingJob, controller);
+    } catch (error) {
+      const recoveryNote = controller.signal.aborted
+        ? 'Stopped checking. Your generation can continue in the background.'
+        : error instanceof Error
+          ? error.message
+          : 'Please resume in a moment.';
+      setNotice(recoveryNote);
+      setPendingJob({ ...pendingJob, recoveryNote });
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+      cancel.current = null;
+    }
+  }
   async function send(value = draft) {
     const text = value.trim();
-    if (!text || busyRef.current) return;
+    if (!text || busyRef.current || pendingJob) return;
     busyRef.current = true;
     setDraft('');
     setBusy(true);
-    setProgress(0);
     setActivePlan(null);
-    setStatus('Thinking…');
+    setStatus('Reading your brief…');
+    setNotice('');
+    setJobPhase('');
     const history = [
       ...messages,
       { id: crypto.randomUUID(), role: 'user' as const, text },
@@ -175,15 +376,14 @@ export default function Home() {
     setMessages(history);
     const controller = new AbortController();
     cancel.current = controller;
-    let audio: AudioContext | undefined;
+    let submittedJob: GenerationJob | undefined;
     try {
-      if (typeof AudioContext !== 'undefined') {
-        audio = new AudioContext();
-        void audio.resume().catch(() => {});
-      }
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Studio-Access': accessCode,
+        },
         body: JSON.stringify({
           messages: history
             .slice(-16)
@@ -196,122 +396,59 @@ export default function Home() {
           AbortSignal.timeout(60000),
         ]),
       });
-      const result = (await response.json()) as {
-        error?: string;
-        message: string;
-        plan?: VideoPlan;
-        ticket: string;
-      };
+      const result = await response.json();
       if (!response.ok)
         throw new Error(
           result.error || 'Something went wrong. Please try again.',
         );
       if (!result.plan)
-        setMessages((m) => [
-          ...m,
+        setMessages([
+          ...history,
           { id: crypto.randomUUID(), role: 'assistant', text: result.message },
         ]);
       else {
-        setStatus(`Making a cut for ${result.plan.product}…`);
-        setActivePlan(result.plan);
-        const { renderVideo } = await import('@/lib/render');
-        const { blob, poster } = await renderVideo(
-          result.plan,
-          (value, label) => {
-            setProgress(value);
-            setStatus(label);
-          },
-          controller.signal,
-          audio,
-        );
-        setStatus('Saving your video…');
-        setProgress(96);
-        const localUrl = URL.createObjectURL(blob);
-        const format = blob.type.includes('webm')
-          ? ('webm' as const)
-          : ('mp4' as const);
-        objectUrls.current.push(localUrl);
-        if (blob.size > 4000000) {
-          setMessages((m) => [
-            ...m,
-            {
-              id: crypto.randomUUID(),
-              role: 'assistant',
-              text: 'Your video is ready to download. It exceeded the sharing upload limit, so this copy is available only in this tab.',
-              video: {
-                url: localUrl,
-                plan: result.plan!,
-                poster,
-                local: true,
-                format,
-              },
-            },
-          ]);
-          return;
-        }
-        let saved: { error?: string; url: string };
+        const job: GenerationJob = {
+          id: result.jobId,
+          ticket: result.ticket,
+          plan: result.plan,
+          prompt: text,
+          // eslint-disable-next-line react/react-compiler -- Timestamp created by the Send event, not by rendering.
+          startedAt: Date.now(),
+        };
+        setPendingJob(job);
+        // Persist before submission so a reload or lost response cannot cause a second paid job.
         try {
-          const upload = await fetch('/api/videos', {
-            method: 'POST',
-            headers: {
-              'Content-Type': blob.type,
-              'X-Render-Ticket': result.ticket,
-            },
-            body: blob,
-            signal: AbortSignal.any([
-              controller.signal,
-              AbortSignal.timeout(30000),
-            ]),
-          });
-          saved = (await upload.json()) as { error?: string; url: string };
-          if (!upload.ok)
-            throw new Error(saved.error || 'Could not save the video.');
-        } catch (error) {
-          if (controller.signal.aborted) throw error;
-          setMessages((m) => [
-            ...m,
-            {
-              id: crypto.randomUUID(),
-              role: 'assistant',
-              text: 'The video rendered, but its share link couldn’t be saved. You can still download it below. Keep this tab open until you do.',
-              video: {
-                url: localUrl,
-                plan: result.plan!,
-                poster,
-                local: true,
-                format,
-              },
-            },
-          ]);
-          return;
-        }
-        setMessages((m) => [
-          ...m,
+          sessionStorage.setItem(
+            'cut-chat-v1',
+            JSON.stringify({ messages: history, draft: '', pendingJob: job }),
+          );
+        } catch {}
+        submittedJob = job;
+        await runGeneration(job, controller);
+      }
+    } catch (error) {
+      const errorText = controller.signal.aborted
+        ? submittedJob
+          ? 'Stopped checking. Your generation can continue in the background.'
+          : 'Stopped. Send another message whenever you’re ready.'
+        : error instanceof Error
+          ? error.message
+          : 'Could not complete this request.';
+      if (submittedJob) {
+        setNotice(errorText);
+        setPendingJob({ ...submittedJob, recoveryNote: errorText });
+      } else
+        setMessages([
+          ...history,
           {
             id: crypto.randomUUID(),
             role: 'assistant',
-            text: result.message,
-            video: { url: saved.url, plan: result.plan!, poster, format },
+            error: true,
+            retryPrompt: controller.signal.aborted ? undefined : text,
+            text: errorText,
           },
         ]);
-      }
-    } catch (error) {
-      setMessages((m) => [
-        ...m,
-        {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          error: true,
-          retryPrompt: text,
-          text: controller.signal.aborted
-            ? 'Stopped. Send another message whenever you’re ready.'
-            : error instanceof Error
-              ? error.message
-              : 'Could not finish this cut. Please try again.',
-        },
-      ]);
     } finally {
-      void audio?.close().catch(() => {});
       busyRef.current = false;
       setBusy(false);
       cancel.current = null;
@@ -319,7 +456,7 @@ export default function Home() {
     }
   }
   function newChat() {
-    if (busyRef.current) return;
+    if (busyRef.current || pendingJob) return;
     setMessages([]);
     setDraft('');
     setActivePlan(null);
@@ -349,7 +486,7 @@ export default function Home() {
         <button
           type="button"
           onClick={newChat}
-          disabled={busy}
+          disabled={busy || !!pendingJob}
           className="brand"
           aria-label="Cut — start a new chat"
         >
@@ -359,27 +496,50 @@ export default function Home() {
           cut<span className="brand-dot">.</span>
         </button>
         <span className="header-note">
-          A little chat. A great little video.
+          <Clapperboard size={14} /> UGC Studio
         </span>
         <div className="header-actions">
-          {aiReady !== null && (
+          {accessRequired && (
+            <details className="access-settings">
+              <summary>Studio access</summary>
+              <div>
+                <label htmlFor="studio-access">Generation access code</label>
+                <input
+                  id="studio-access"
+                  type="password"
+                  autoComplete="current-password"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value)}
+                  placeholder="Enter your studio code"
+                />
+                <small>Required to use this studio’s generation credits.</small>
+              </div>
+            </details>
+          )}
+          {generationReady !== null && (
             <span
-              className={`mode-badge ${aiReady ? 'connected' : ''}`}
+              className={`mode-badge ${generationReady ? 'connected' : ''}`}
               title={
-                aiReady
-                  ? 'Creative assistant connected'
-                  : 'Product videos and simple hook edits are available. Free-form chat needs an AI provider.'
+                generationReady
+                  ? aiReady
+                    ? 'Higgsfield video and AI chat connected'
+                    : 'Higgsfield video connected; chat uses a basic brief planner'
+                  : 'Add your Higgsfield API credentials on the server to enable generation'
               }
             >
               <span />
-              {aiReady ? 'Creative assistant' : 'Basic mode'}
+              {generationReady
+                ? 'Higgsfield connected'
+                : 'Higgsfield not connected'}
             </span>
           )}
-          {messages.length > 0 && (
-            <button className="new-chat" onClick={newChat} disabled={busy}>
-              <Plus size={16} /> New chat
-            </button>
-          )}
+          <button
+            className="new-chat"
+            onClick={newChat}
+            disabled={busy || !!pendingJob}
+          >
+            <Plus size={16} /> New cut
+          </button>
         </div>
       </header>
       <section
@@ -387,45 +547,19 @@ export default function Home() {
         aria-label="Video creation chat"
       >
         {!messages.length && (
-          <div className="welcome">
-            <div className="welcome-kicker">
-              <span /> YOUR NEXT POST STARTS HERE
-            </div>
-            <h1>
-              Got a link?
-              <br />
-              Let’s make it <span>move.</span>
-            </h1>
-            <p>
-              Send a product link. Get a short video with bold captions,
-              <br className="desktop-break" /> a good beat, and a reaction worth
-              watching.
-            </p>
-            <div className="ingredient-strip" aria-label="Video ingredients">
-              <span>
-                <Film size={16} /> Real visuals
-              </span>
-              <i>+</i>
-              <span className="type-ingredient">
-                Aa <b>Bold captions</b>
-              </span>
-              <i>+</i>
-              <span>
-                <Music2 size={16} /> Music
-              </span>
-              <i>+</i>
-              <span>
-                <Image
-                  unoptimized
-                  src="/assets/mind-blown.gif"
-                  width="34"
-                  height="34"
-                  alt=""
-                />{' '}
-                Reaction GIF
-              </span>
-            </div>
-          </div>
+          <StudioWelcome
+            onPrompt={(prompt) => {
+              setDraft(prompt);
+              input.current?.focus();
+              input.current?.scrollIntoView({
+                behavior: window.matchMedia('(prefers-reduced-motion: reduce)')
+                  .matches
+                  ? 'instant'
+                  : 'smooth',
+                block: 'center',
+              });
+            }}
+          />
         )}
         {messages.length > 0 && (
           <h1 className="sr-only">Your video creation chat</h1>
@@ -450,18 +584,21 @@ export default function Home() {
                 <p className={message.error ? 'error-copy' : ''}>
                   {message.text}
                 </p>
-                {message.error && !message.text.startsWith('Stopped') && (
-                  <button
-                    className="retry"
-                    disabled={busy}
-                    onClick={() => send(message.retryPrompt)}
-                  >
-                    <RotateCcw size={15} /> Try again
-                  </button>
-                )}
+                {message.error &&
+                  message.retryPrompt &&
+                  !message.text.startsWith('Stopped') && (
+                    <button
+                      className="retry"
+                      disabled={busy || !!pendingJob}
+                      onClick={() => send(message.retryPrompt)}
+                    >
+                      <RotateCcw size={15} /> Try again
+                    </button>
+                  )}
                 {message.video && (
                   <div className="video-card">
                     <div className="video-wrap">
+                      {/* eslint-disable-next-line jsx-a11y/media-has-caption -- The provider supplies native dialogue without a transcript; do not mislabel its audio with the legacy music-only captions. */}
                       <video
                         controls
                         playsInline
@@ -470,18 +607,27 @@ export default function Home() {
                         poster={message.video.poster}
                         aria-label={`${message.video.plan.product} marketing video`}
                       >
-                        <track
-                          kind="captions"
-                          src="/assets/music-captions.vtt"
-                          srcLang="en"
-                          label="Music captions"
-                        />
+                        {/* Higgsfield creates native dialogue; legacy music captions do not describe it. */}
+                        {message.video.provider !== 'higgsfield' && (
+                          <track
+                            kind="captions"
+                            src="/assets/music-captions.vtt"
+                            srcLang="en"
+                            label="Music captions"
+                          />
+                        )}
                       </video>
                       <span className="video-badge">
-                        8 SEC <span>•</span> 9:16
+                        {message.video.provider === 'higgsfield'
+                          ? 'HIGGSFIELD'
+                          : '8 SEC'}{' '}
+                        <span>•</span> 9:16
                       </span>
                     </div>
                     <div className="video-info">
+                      <span className="cut-label">
+                        <Clapperboard size={13} /> YOUR FINISHED CUT
+                      </span>
                       <span className="ready">
                         <Check size={14} />{' '}
                         {message.video.local
@@ -493,7 +639,7 @@ export default function Home() {
                         <Volume2 size={14} /> 720p vertical · Sound on
                       </p>
                       <div className="caption-preview">
-                        <span>THE HOOK</span>
+                        <span>CREATIVE DIRECTION</span>
                         <blockquote>
                           “{message.video.plan.captions[0]}”
                         </blockquote>
@@ -502,13 +648,23 @@ export default function Home() {
                         <a
                           className="download"
                           href={
-                            message.video.local
+                            message.video.local ||
+                            message.video.provider === 'higgsfield'
                               ? message.video.url
                               : `${message.video.url}?download=1`
                           }
+                          target={
+                            message.video.provider === 'higgsfield'
+                              ? '_blank'
+                              : undefined
+                          }
+                          rel="noreferrer"
                           download={`cut-${message.video.plan.product.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.${message.video.format || 'mp4'}`}
                         >
-                          <Download size={15} /> Download
+                          <Download size={15} />{' '}
+                          {message.video.provider === 'higgsfield'
+                            ? 'Open / download'
+                            : 'Download'}
                         </a>
                         {!message.video.local && (
                           <button onClick={() => copy(message.video!.url)}>
@@ -533,8 +689,19 @@ export default function Home() {
                           Open video <ArrowUpRight size={13} />
                         </a>
                       )}
+                      {message.video.provider === 'higgsfield' && (
+                        <p className="provider-note">
+                          AI-generated · Veo 3.1 Fast
+                          <br />
+                          Download to keep. Provider links are temporary.
+                        </p>
+                      )}
                       <details>
-                        <summary>What’s in this cut</summary>
+                        <summary>
+                          {message.video.provider === 'higgsfield'
+                            ? 'The creative brief'
+                            : 'What’s in this cut'}
+                        </summary>
                         <p>{message.video.plan.description}</p>
                         <ol className="caption-list">
                           {message.video.plan.captions.map((caption, i) => (
@@ -544,16 +711,17 @@ export default function Home() {
                             </li>
                           ))}
                         </ol>
-                        {message.video.plan.credits.map((credit) => (
-                          <a
-                            key={credit.url}
-                            href={credit.url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {credit.label} <ArrowUpRight size={11} />
-                          </a>
-                        ))}
+                        {message.video.provider !== 'higgsfield' &&
+                          message.video.plan.credits.map((credit) => (
+                            <a
+                              key={credit.url}
+                              href={credit.url}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {credit.label} <ArrowUpRight size={11} />
+                            </a>
+                          ))}
                       </details>
                     </div>
                   </div>
@@ -563,7 +731,7 @@ export default function Home() {
                     <div className="revision-options">
                       <span>Try another take</span>
                       <button
-                        disabled={busy}
+                        disabled={busy || !!pendingJob}
                         onClick={() =>
                           revise('make the hook punchier', message.video!.plan)
                         }
@@ -571,7 +739,7 @@ export default function Home() {
                         <Sparkles size={14} /> Punchier
                       </button>
                       <button
-                        disabled={busy}
+                        disabled={busy || !!pendingJob}
                         onClick={() =>
                           revise(
                             'make the hook more playful',
@@ -598,35 +766,43 @@ export default function Home() {
                   {status}
                 </p>
                 {activePlan && (
-                  <div className="render-assets">
-                    <Image
-                      unoptimized
-                      width={40}
-                      height={54}
-                      src={activePlan.background}
-                      alt="Selected background"
-                    />
-                    <span>+</span>
-                    <Image
-                      unoptimized
-                      width={45}
-                      height={54}
-                      src={activePlan.gif}
-                      alt="Selected reaction GIF"
-                    />
-                    <div>
-                      <strong>{activePlan.product}</strong>
-                      <span>Three beats. One fresh cut.</span>
+                  <div className="render-studio">
+                    <div className="generation-brief">
+                      <Clapperboard size={26} />
+                      <div>
+                        <strong>{activePlan.product}</strong>
+                        <span>Veo 3.1 Fast · 8 sec · 9:16 · Native audio</span>
+                      </div>
                     </div>
-                  </div>
-                )}
-                {progress > 0 && (
-                  <>
-                    <Progress value={progress} className="render-progress" />
+                    <div
+                      className="render-stages"
+                      aria-label="Generation stages"
+                    >
+                      <span className="complete">
+                        <Check size={14} />
+                        Brief
+                      </span>
+                      <span
+                        className={
+                          jobPhase === 'queued' || jobPhase === 'submitting'
+                            ? 'active'
+                            : 'complete'
+                        }
+                      >
+                        <WandSparkles size={14} />
+                        Queue
+                      </span>
+                      <span
+                        className={jobPhase === 'in_progress' ? 'active' : ''}
+                      >
+                        <MonitorPlay size={14} />
+                        Generate
+                      </span>
+                    </div>
                     <span className="render-note">
-                      Keep this tab visible while your video comes together.
+                      You can leave this tab. Resume checking when you return.
                     </span>
-                  </>
+                  </div>
                 )}
               </div>
             </article>
@@ -635,6 +811,56 @@ export default function Home() {
         <div ref={end} />
       </section>
       <div className="composer-dock">
+        {pendingJob && !busy && (
+          <div className="pending-generation">
+            <div>
+              <strong>{pendingJob.plan.product}</strong>
+              <p>
+                {notice ||
+                  pendingJob.recoveryNote ||
+                  status ||
+                  'Your generation is saved. Resume to check for the result.'}
+              </p>
+              <details className="tracking-options">
+                <summary>Recovery options</summary>
+                <a
+                  href="https://cloud.higgsfield.ai"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Find the video in Higgsfield Cloud <ArrowUpRight size={12} />
+                </a>
+                <p>
+                  Closing tracking does not cancel a generation or refund
+                  credits. Check Higgsfield before submitting the same brief
+                  again.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMessages((items) => [
+                      ...items,
+                      {
+                        id: crypto.randomUUID(),
+                        role: 'assistant',
+                        text: `Tracking closed for ${pendingJob.plan.product}. ${pendingJob.recoveryNote || 'The generation may still be running. Check Higgsfield Cloud for the result before submitting it again.'}`,
+                      },
+                    ]);
+                    setPendingJob(null);
+                    setNotice('');
+                    setStatus('');
+                  }}
+                >
+                  Close tracking
+                </button>
+              </details>
+            </div>
+            <button type="button" onClick={() => void resumeGeneration()}>
+              <RotateCcw size={14} />
+              Resume generation
+            </button>
+          </div>
+        )}
         <div className="composer-inner">
           {!messages.length && (
             <div className="suggestions">
@@ -667,6 +893,11 @@ export default function Home() {
             }}
             className="composer"
           >
+            {!messages.length && (
+              <div className="composer-label">
+                <Link2 size={14} /> START WITH YOUR PRODUCT
+              </div>
+            )}
             <label className="sr-only" htmlFor="message">
               Message Cut
             </label>
@@ -675,8 +906,9 @@ export default function Home() {
               id="message"
               value={draft}
               maxLength={2400}
+              disabled={!!pendingJob}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Drop a product link, or just say hi…"
+              placeholder="Paste a product link. Tell us the vibe."
               rows={1}
               onKeyDown={(e) => {
                 if (
@@ -692,16 +924,14 @@ export default function Home() {
             <div className="composer-bottom">
               <span>
                 <span className="status-dot" />{' '}
-                {busy
-                  ? 'Making something good'
-                  : '8 seconds · Vertical · Ready to share'}
+                {busy ? 'Generating with Higgsfield' : '8 sec · 9:16 · 720p'}
               </span>
               {busy ? (
                 <button
                   type="button"
                   className="send stop"
                   onClick={() => cancel.current?.abort()}
-                  aria-label="Stop rendering"
+                  aria-label="Stop checking generation"
                 >
                   <X size={19} />
                 </button>
@@ -709,16 +939,17 @@ export default function Home() {
                 <button
                   type="submit"
                   className="send"
-                  disabled={!draft.trim()}
+                  disabled={!draft.trim() || !!pendingJob}
                   aria-label="Send message"
                 >
-                  <ArrowUp size={20} />
+                  <span>Let’s create</span>
+                  <ArrowUp size={18} />
                 </button>
               )}
             </div>
           </form>
           <div className="below-composer">
-            <span>Existing media. A fresh point of view.</span>
+            <span>AI video by Higgsfield · Uses your studio’s API credits</span>
             <span>
               Enter to send <i>·</i> Shift + Enter for a new line
             </span>

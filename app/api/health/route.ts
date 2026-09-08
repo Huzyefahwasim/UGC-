@@ -1,12 +1,23 @@
 import { runtime } from '@/lib/server';
 import { storageConfigured, storageMode } from '@/lib/storage';
+import { configured } from '@/lib/higgsfield';
+import { generationAccessRequired } from '@/lib/generation-access';
 export async function GET() {
-  const ready = storageConfigured();
+  const storageReady = storageConfigured();
+  const generationReady = configured();
+  const accessReady =
+    !generationAccessRequired() ||
+    Boolean(process.env.STUDIO_ACCESS_CODE?.trim());
+  const ready = storageReady && generationReady && accessReady;
   return Response.json(
     {
       status: ready ? 'ok' : 'setup_required',
       aiConfigured: !!runtime().OPENAI_API_KEY,
-      storageConfigured: ready,
+      generationConfigured: generationReady,
+      generationProvider: 'higgsfield',
+      generationAccessRequired: generationAccessRequired(),
+      generationAccessConfigured: accessReady,
+      storageConfigured: storageReady,
       storageMode: storageMode(),
     },
     { status: ready ? 200 : 503 },

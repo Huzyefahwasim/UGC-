@@ -104,7 +104,7 @@ export function fallbackReply(
     return {
       kind: 'render',
       reply: quoted
-        ? 'Same product and visuals, with your new hook.'
+        ? 'The same product brief with your new hook. Higgsfield will create a fresh generation.'
         : 'Here’s another cut with a fresh hook and closing line.',
       ...previous,
       category: previous.category || categoryFor(previous.description),
@@ -146,7 +146,7 @@ export function fallbackReply(
     return {
       kind: 'chat',
       reply:
-        'Send a product URL or introduce it like “I’m building Bloom, a plant-care app.” I’ll combine a photo, three caption beats, music, and an animated reaction GIF into an eight-second video. Then you can ask for a punchier or more playful hook.',
+        'Send a product URL or introduce it like “I’m building Bloom, a plant-care app.” I’ll prepare a creative brief and use Higgsfield to generate an eight-second vertical video with audio. Then you can ask for a punchier or more playful hook.',
     };
   if (intent === 'render')
     return {

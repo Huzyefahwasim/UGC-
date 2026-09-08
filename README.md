@@ -1,49 +1,68 @@
 # Cut
 
-A chat interface that turns a product URL or description into an eight-second vertical video: real photography, three caption beats, licensed music, and a prominent animated reaction GIF.
+A creator studio with a chat interface: send a product URL or description, shape the brief in conversation, and generate a short UGC-style video with **Higgsfield as the main video engine**.
 
 Repository: https://github.com/Huzyefahwasim/UGC-
 
-The former ChatGPT-hosted deployment has been removed. This version is prepared for **your own Vercel deployment**; it has not been published on your behalf.
+The former ChatGPT-hosted deployment has been removed. This version is prepared for **your own Vercel deployment**; no Vercel account or deployment has been used on your behalf.
 
 ## Local development
 
 Requires Node 22.13+ and npm.
 
 1. Run `npm ci`.
-2. Copy `.env.example` to `.env`. Add an AI provider key for full conversation, or leave it blank to try basic product rendering.
-3. Run `npm run dev`.
-4. Open http://localhost:3000.
+2. Copy `.env.example` to the ignored `.env` file.
+3. Set `HF_API_KEY_ID` and `HF_API_KEY_SECRET` from your Higgsfield Cloud account. Set the separate `OPENAI_API_KEY` for full AI conversation.
+4. Run `npm run dev` and open http://localhost:3000.
 
-With no Blob token, development stores videos and the render signing key in ignored `.data/`. No hosting account is needed for local testing. Keep this directory if you want local video links to survive restarts.
+Missing Higgsfield credentials are a setup requirement, not a request to use the old stock-asset renderer. Without a chat key, the deterministic conversational fallback can handle basic greetings and product requests; it is not a language model.
 
 ## Deploy on Vercel
 
-See [VERCEL.md](VERCEL.md) for the complete setup. Import this GitHub repository as a Next.js project, connect a **public Vercel Blob store**, and configure your AI provider. The build command is `npm run build`. No ChatGPT Sites or Cloudflare runtime is required.
+Follow [VERCEL.md](VERCEL.md). Import this repository as a Next.js project, add your server-side provider credentials, then deploy through your own account. The build command is `npm run build`. ChatGPT Sites and Cloudflare are not required.
 
-## What works
+## Product flow
 
-- Greetings and questions stay in chat. Product messages trigger a render.
-- Product-page metadata helps choose existing media and write a brief. You can also supply the name and description if a site blocks reading.
-- Videos are 720 × 1280, about eight seconds, with photo motion, animated captions, decoded GIF frames, and an audible soundtrack. MP4 is preferred; browsers without MP4 encoding use WebM.
-- An immediate poster makes the result visible before playback. Download, copy a share link, or draft a punchier/playful revision.
-- Exact quoted hook changes preserve the other captions. A new product does not inherit the previous product's URL.
-- This tab's conversation and draft survive reloads through session storage. New chat clears that local history; closing the tab ends the session. Saved video links remain independent of chat.
-- If uploading fails, the rendered video remains downloadable in the current tab.
+- Greetings and ordinary questions stay in chat. Product creation requests start a video job.
+- Public product-page metadata helps write a specific brief. A name and description also work when a website blocks reading.
+- The server submits the brief to Higgsfield. The chat follows the queued/processing state and presents the returned output when generation completes.
+- Product revisions reuse the conversation and submit a new generation. A new product does not inherit the previous product's URL.
+- The tab's conversation and draft survive reloads through session storage. New chat clears that history; closing the tab ends the local session.
+
+Higgsfield is an AI media generator. This version intentionally changes the original stock-only rendering approach following the owner's request. Output quality, sound, typography, and duration depend on the selected model and parameters; a separate animated GIF layer or currently trending track is not guaranteed.
 
 ## Architecture
 
-Next.js App Router and React. The server reads public websites with bounded HTML, validates addresses and redirects, calls an OpenAI-compatible chat-completions provider when configured, and issues signed 15-minute render permits.
+Next.js App Router and React. The server reads public websites with bounded HTML, validates addresses and redirects, and calls an OpenAI-compatible chat-completions provider when configured.
 
-The browser composes existing assets into a canvas and records its video plus a Web Audio soundtrack. It must remain visible during rendering. No server renderer, paid video API, or generated media is required.
+Video generation runs remotely through Higgsfield's asynchronous API. The current model is `veo3.1/fast`, with eight seconds, 720p, 9:16, and native audio requested. Submission and status checks use separate server requests, so a Vercel function does not stay open for the entire generation. Higgsfield credentials stay on the server. See the [official API documentation](https://docs.higgsfield.ai/docs).
 
-The upload API verifies the permit, checks the format and a 4,000,000-byte size ceiling, then writes one immutable video per permit. Vercel Blob serves public playback from its CDN. The app supplies a stable video path and downloads with the correct file extension. Local playback supports byte ranges, HEAD, and ETags.
+Vercel Blob stores immutable submission claims and encrypted provider job references; it does not automatically copy the generated videos. Development can use ignored `.data/` for these records. Production requires Blob and a `STUDIO_ACCESS_CODE` to allow paid generation. Visitors can open the page without a hosting login, but need that code to generate.
 
-## AI configuration
+The earlier 720p, eight-second canvas assembler remains in `lib/render.ts`, alongside its stock assets and upload/storage support. It is not the default engine or an automatic fallback for an unavailable provider. Its previously verified exports do not establish that the new Higgsfield path has been tested against a live account.
 
-`OPENAI_API_KEY` stays on the server. `AI_BASE_URL` and `AI_MODEL` support an OpenAI-compatible provider; it must support chat completions and JSON response mode.
+## Provider configuration
 
-Without a key, basic mode supports greetings, help, thanks, product links, structured descriptions, and simple hook revisions. It is deterministic and does **not** provide full ChatGPT-like conversation. The interface labels this mode.
+| Variable                | Purpose                                                              |
+| ----------------------- | -------------------------------------------------------------------- |
+| `HF_API_KEY_ID`         | Higgsfield API credential ID                                         |
+| `HF_API_KEY_SECRET`     | Matching Higgsfield API secret                                       |
+| `OPENAI_API_KEY`        | Separate AI provider key for conversation and briefs                 |
+| `AI_BASE_URL`           | OpenAI-compatible base URL; defaults to `https://api.openai.com/v1`  |
+| `AI_MODEL`              | Chat model ID; defaults to `gpt-4.1-mini`                            |
+| `BLOB_READ_WRITE_TOKEN` | Public Vercel Blob store for production job records                  |
+| `STUDIO_ACCESS_CODE`    | Visitor generation access code; required in production               |
+| `RENDER_SIGNING_SECRET` | Optional stable key for generation tickets and encrypted job records |
+
+Create the two Higgsfield credentials in [Higgsfield Cloud](https://cloud.higgsfield.ai). They are different from the chat provider key. Do not use a `NEXT_PUBLIC_` prefix or commit secrets. The chat provider must support chat completions with JSON response mode.
+
+## Costs and output retention
+
+Higgsfield charges successful generations in account credits; the cost depends on the model and parameters. Creative revisions produce new generation requests. Check your account's model pricing and spending controls before making the app public. [Higgsfield billing documentation](https://docs.higgsfield.ai/docs/concepts/billing-and-retention).
+
+Provider output links are temporary delivery, not permanent storage. Download completed videos you need to keep. The provider documents availability for at least seven days, after which output may be removed. [Output retention](https://docs.higgsfield.ai/docs/concepts/billing-and-retention).
+
+The app's anonymous request backstop is per server process. It is not a distributed usage or billing limit. Hosting and chat-provider plan limits also apply.
 
 ## Verification
 
@@ -54,15 +73,9 @@ npm run build
 npm run lint
 ```
 
-Tests cover product intent, URL/email boundaries, metadata quotation, real GIF frames, expiring/tampered tickets, duplicate uploads, size/type checks, byte ranges, downloads, and missing production storage. Exported-media evidence and verification limits are in [VERIFICATION.md](VERIFICATION.md).
+Verification evidence and current limits are recorded in [VERIFICATION.md](VERIFICATION.md). No authenticated Higgsfield generation has been completed yet because no API credentials have been connected. Before submission, verify a real generation from an unfamiliar product URL on your public Vercel deployment.
 
-## Limits
-
-The music is licensed stock, not a verified currently trending song. The GIFs are Google Noto animations; [ASSETS.md](ASSETS.md) records sources and attribution. Videos do not imply endorsements by photographed people.
-
-The anonymous request backstop is 20 messages per hour **per server process**. It is not a distributed usage or billing limit. Configure Vercel Firewall rules before opening a deployment to substantial traffic. Video storage has no automatic retention job; manage old videos in your Blob dashboard. Vercel/Blob and your AI provider's plan limits apply.
-
-Local file storage is disabled in production to avoid losing uploads in ephemeral serverless storage. A production deployment without `BLOB_READ_WRITE_TOKEN` reports that setup is required.
+Bundled legacy media attribution is recorded in [ASSETS.md](ASSETS.md). [WALKTHROUGH.md](WALKTHROUGH.md) is a camera-on recording script, not a completed walkthrough.
 
 ## Agent capture
 
