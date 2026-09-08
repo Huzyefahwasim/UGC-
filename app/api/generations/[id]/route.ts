@@ -1,5 +1,6 @@
 import { readGeneration, verifyGenerationTicket } from '@/lib/generation-jobs';
-import { getVideoStatus } from '@/lib/higgsfield';
+import { getVideoStatus } from '@/lib/ltx';
+import { createRenderTicket } from '@/lib/tickets';
 import { RequestError } from '@/lib/server';
 
 export const maxDuration = 90;
@@ -22,7 +23,13 @@ export async function GET(
         status: job.claimed ? 'submitting' : 'not_started',
       });
     const result = await getVideoStatus(job.providerId);
-    return Response.json(result, { headers: { 'Cache-Control': 'no-store' } });
+    return Response.json(
+      {
+        ...result,
+        renderTicket: await createRenderTicket(ticket.plan.product),
+      },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
   } catch (error) {
     return Response.json(
       {

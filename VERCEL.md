@@ -1,71 +1,38 @@
-# Deploy Cut on your Vercel account
+# Deploy Cut on your own Vercel account
 
-Higgsfield is the main video engine. This guide sets up a deployment you control; no Vercel project, subscription, or deployment has been created automatically.
+The app uses LTX-Video through the free Hugging Face demo. No Vercel project or deployment has been created automatically.
 
-## 1. Import the repository
+1. Import https://github.com/Huzyefahwasim/UGC- as a Next.js project in your own Vercel account.
+2. Use Node 22+, install with `npm ci`, build with `npm run build`.
+3. Connect a **public Vercel Blob** store. Confirm `BLOB_READ_WRITE_TOKEN` is available to the deployment.
+4. Set a stable random `RENDER_SIGNING_SECRET` and a private `STUDIO_ACCESS_CODE`.
+5. Add `HUGGINGFACE_TOKEN` from https://huggingface.co/settings/tokens for your free account allowance. Anonymous mode is smaller and unreliable for a shared public app.
+6. Optionally set `OPENAI_API_KEY`, `AI_BASE_URL` and `AI_MODEL` for normal AI conversation and bespoke shot directions.
+7. Deploy with Fluid compute enabled. The generation route declares `maxDuration = 300`; it holds one Gradio stream with a four-minute deadline.
+8. Disable Vercel Deployment Protection for the production site if it must open to signed-out reviewers. Give reviewers the studio code separately.
 
-In Vercel, choose **Add New → Project** and import https://github.com/Huzyefahwasim/UGC-.
+Higgsfield credentials are obsolete and unused. Keep all keys server-side, never in `NEXT_PUBLIC_` variables. An HF token is not a chat provider key.
 
-- Framework preset: **Next.js**
-- Root directory: repository root
-- Install command: `npm ci`
-- Build command: `npm run build`
-- Output directory: use the Next.js default
-- Node.js: 22.x or newer supported by Next.js
+## Verify after deployment
 
-## 2. Connect job storage
+- Open the production link signed out. The page should load without a Vercel login.
+- Check `/api/health` reports storage and generation configured. This checks local configuration, not live GPU availability.
+- Send “hi” and “what can you do?”; neither should render.
+- Enter the studio code and submit an unfamiliar product URL with a concrete camera/light preference.
+- Keep the tab visible for finishing. Verify moving footage, three caption beats, music, the GIF, and a working download/share link.
+- Reload and confirm the saved conversation and video remain available.
+- If the free queue rejects the request, verify **Use free assets instead** produces a clearly labeled stock-photo cut.
 
-Open the project's **Storage** tab, create a **Blob** store with **Public** access, and connect it to the project. Confirm `BLOB_READ_WRITE_TOKEN` is available in the production environment. See [Vercel Blob documentation](https://vercel.com/docs/vercel-blob).
+## Quotas and storage
 
-The app stores immutable generation claims and encrypted provider job references in Blob. These records prevent a repeated submission from creating another paid provider job. The generated video itself is delivered from the provider's output URL; connecting Blob does not automatically archive Higgsfield videos.
+A free HF account currently gets five GPU minutes/day. This model uses xlarge ZeroGPU at 2× quota consumption. Shared queues and runtime reservations can reject requests before the remaining allowance reaches zero. One server token shares its quota across all app users. No automatic switch to a paid video provider is implemented. [ZeroGPU documentation](https://huggingface.co/docs/hub/spaces-zerogpu).
 
-The earlier canvas renderer also uses this store for its video uploads. Local file storage is disabled in production because the serverless filesystem is ephemeral.
+Vercel and Blob have their own allowances and billing settings. The studio code protects access, not hosting spend. Use account budget controls and deployment-wide rate limits as appropriate for your audience.
 
-## 3. Configure video generation and chat
+Blob stores encrypted footage references, immutable submission claims and completed video exports. It does not archive the original raw LTX MP4. Finish or download before the Space removes that temporary file. No automatic record-retention cleanup is configured.
 
-Create a key ID and matching secret in [Higgsfield Cloud](https://cloud.higgsfield.ai). Add the following server environment variables to the Vercel project, using separate preview credentials if you enable preview deployments:
+Exports have a 4,000,000-byte upload cap, below [Vercel's 4.5 MB function payload limit](https://vercel.com/docs/functions/limitations). The current six/eight-second 3 Mbps exports fit this cap; unusually large output will be rejected. Videos are immutable and published only with signed upload permits.
 
-| Variable                | Value                                                                        |
-| ----------------------- | ---------------------------------------------------------------------------- |
-| `HF_API_KEY_ID`         | Your Higgsfield API key ID                                                   |
-| `HF_API_KEY_SECRET`     | The matching Higgsfield API secret                                           |
-| `STUDIO_ACCESS_CODE`    | A strong access code you choose for visitors allowed to generate paid videos |
-| `BLOB_READ_WRITE_TOKEN` | Added by the connected public Blob store                                     |
-| `OPENAI_API_KEY`        | Your separate chat provider API key                                          |
-| `AI_BASE_URL`           | `https://api.openai.com/v1`, or a compatible provider's base URL             |
-| `AI_MODEL`              | `gpt-4.1-mini`, or the exact chat model ID from your provider                |
+## Local development
 
-Higgsfield credentials and the chat provider key serve different purposes. All of these values stay server-side; do not prefix them with `NEXT_PUBLIC_`. The chat provider must support `/chat/completions` with JSON response mode. [Higgsfield authentication documentation](https://docs.higgsfield.ai/docs/authentication).
-
-The current integration submits to `veo3.1/fast`, requesting an eight-second, 720p, 9:16 clip with generated audio. Confirm that your Higgsfield account can access that model and has API credits. Output quality and generation time still depend on the provider; no authenticated generation has been verified yet.
-
-Production requires `STUDIO_ACCESS_CODE` before paid generation can start. The page can open without a Vercel login, but visitors need your studio code to generate. Give intended demo reviewers that code separately. The code is an access gate, not a spending cap.
-
-Recommended: set a stable, long random `RENDER_SIGNING_SECRET`. Otherwise generation tickets and encrypted job records derive their key from `HF_API_KEY_SECRET`. Changing the effective key invalidates pending tickets and prevents the app from reading job records encrypted with the old key.
-
-## 4. Deploy and verify
-
-Deploy or redeploy after changing environment variables. Then verify the public production URL, not localhost:
-
-1. Open `/api/health`. Expect `storageConfigured: true`, `storageMode: "blob"`, `generationProvider: "higgsfield"`, `generationConfigured: true`, and `aiConfigured: true`. These flags check local configuration; they do not prove the provider accepts your credentials or has credit.
-2. Open the app in a signed-out/incognito window. Enter the studio generation code when prompted.
-3. Send “hi” and “what can you do?”; neither should submit a generation.
-4. Send a product URL you have not tried before. Confirm that the chat moves through queued/processing to a playable output. Provider generation time is longer than the requested eight-second video duration.
-5. Play the result, verify its sound and product relevance, download it, and open its output link in another incognito tab.
-6. If testing a revision, expect another generation request. Confirm it uses the same product and your requested creative change.
-
-Status polling uses separate short server calls. A browser interruption does not imply that the provider stopped generating; check the existing job before submitting another. The app deliberately does not retry an ambiguous generation submission automatically, because the provider may already have accepted it.
-
-## Cost and retention
-
-Successful Higgsfield generations consume API credits. Model parameters affect cost; use your account's estimate/pricing rather than assuming a fixed free allowance. Hosting, Blob, and the chat provider have their own plan limits. [Higgsfield billing and retention](https://docs.higgsfield.ai/docs/concepts/billing-and-retention).
-
-Higgsfield output is available for at least seven days and may then be removed. Download outputs you need to keep. No automatic archive or deletion policy is configured for job records. The app's per-process request backstop and studio code do not replace account spending controls or shared rate limits.
-
-The legacy browser upload route retains a 4,000,000-byte limit, below [Vercel Functions' 4.5 MB payload limit](https://vercel.com/docs/functions/limitations). Main-engine Higgsfield output does not pass through that upload route.
-
-## Local preview
-
-Use `npm run dev` with the Higgsfield credentials in ignored `.env`. Without a Blob token, development stores job records in ignored `.data/`. Keep that folder and the same signing key to retain access to existing local jobs. Local generation still calls the remote Higgsfield API and uses provider credits.
-
-A production build started with `npm start` requires production storage and the generation access code. The former ChatGPT deployment and its video URLs are not required.
+The ignored `.env` file contains your settings. Without a Blob token, development stores records and exports in ignored `.data/`. Keep the signing secret and data directory to preserve access. Production deliberately refuses to use ephemeral local disk.

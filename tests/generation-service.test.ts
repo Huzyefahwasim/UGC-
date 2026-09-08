@@ -52,7 +52,7 @@ function fixture() {
   };
 }
 
-void test('generation start service never repeats a paid submission', async (t) => {
+void test('generation start service never repeats a GPU submission', async (t) => {
   await t.test(
     'a duplicate claim returns the same job without authorization or resubmission',
     async () => {
@@ -145,8 +145,7 @@ void test('generation start service never repeats a paid submission', async (t) 
         (error: unknown) => {
           assert.ok(error instanceof RequestError);
           assert.equal(error.status, 503);
-          assert.match(error.message, new RegExp(PROVIDER_ID));
-          assert.match(error.message, /accepted your video/);
+          assert.match(error.message, /finished the footage/);
           assert.doesNotMatch(error.message, /Secret database/);
           return true;
         },
@@ -164,10 +163,10 @@ void test('generation start service never repeats a paid submission', async (t) 
     'definite provider rejections preserve safe credential, credit and input reasons',
     async () => {
       for (const [message, status] of [
-        ['Higgsfield credentials need attention.', 503],
-        ['Higgsfield needs API credits.', 503],
-        ['Higgsfield could not accept this brief.', 400],
-        ['Higgsfield is at its generation limit.', 429],
+        ['LTX credentials need attention.', 503],
+        ['LTX needs free GPU allowance.', 503],
+        ['LTX could not accept this brief.', 400],
+        ['LTX is at its generation limit.', 429],
       ] as const) {
         const f = fixture();
         let calls = 0;
@@ -196,7 +195,7 @@ void test('generation start service never repeats a paid submission', async (t) 
       await startGeneration(ticket, f.authorize, f.dependencies);
       await startGeneration(ticket, f.authorize, f.dependencies);
       assert.equal(calls, 1);
-      assert.match(f.state().records[0].error!, /may already be running/);
+      assert.match(f.state().records[0].error!, /No automatic retry/);
       assert.doesNotMatch(f.state().records[0].error!, /upstream secret/);
       assert.equal(f.state().claimed, true);
     },
@@ -210,7 +209,7 @@ void test('generation start service never repeats a paid submission', async (t) 
       let saves = 0;
       f.dependencies.submit = async () => {
         calls++;
-        throw new RequestError('Higgsfield needs API credits.', 503);
+        throw new RequestError('LTX needs free GPU allowance.', 503);
       };
       f.dependencies.record = async () => {
         saves++;
@@ -220,7 +219,7 @@ void test('generation start service never repeats a paid submission', async (t) 
         startGeneration(ticket, f.authorize, f.dependencies),
         (error: unknown) => {
           assert.ok(error instanceof RequestError);
-          assert.match(error.message, /needs API credits/);
+          assert.match(error.message, /needs free GPU allowance/);
           assert.match(error.message, /could not save/);
           return true;
         },

@@ -1,8 +1,7 @@
 import { parseGIF, decompressFrames } from 'gifuct-js';
 import type { VideoPlan } from './types';
 const W = 540,
-  H = 960,
-  DURATION = 8;
+  H = 960;
 function image(src: string, signal: AbortSignal) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     signal.throwIfAborted();
@@ -97,7 +96,9 @@ export async function renderVideo(
   update: (progress: number, text: string) => void,
   signal: AbortSignal,
   audioContext?: AudioContext,
+  footage?: HTMLVideoElement,
 ) {
+  const DURATION = footage ? 6 : 8;
   if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream)
     throw new Error(
       'Video rendering needs a recent Chrome, Edge, Firefox, or Safari browser.',
@@ -208,8 +209,8 @@ export async function renderVideo(
     const chunks: Blob[] = [];
     const ivory = '#f7f5e9';
     const lime = '#d3fb79';
-    const starts = [0, 2.65, 5.3];
-    const lengths = [2.65, 2.65, 2.7];
+    const starts = [0, DURATION / 3, (DURATION * 2) / 3];
+    const lengths = [DURATION / 3, DURATION / 3, DURATION / 3];
     const titles = ['A GOOD FIND', 'HERE’S THE THING', 'YOUR NEXT FAVORITE'];
     const captionLayouts = plan.captions.map((caption) => {
       let size = 56;
@@ -247,6 +248,17 @@ export async function renderVideo(
       : 'Meet your new favorite.';
 
     function photograph(scene: number, local: number) {
+      if (footage) {
+        const scale = Math.max(W / footage.videoWidth, H / footage.videoHeight);
+        ctx.drawImage(
+          footage,
+          (W - footage.videoWidth * scale) / 2,
+          (H - footage.videoHeight * scale) / 2,
+          footage.videoWidth * scale,
+          footage.videoHeight * scale,
+        );
+        return;
+      }
       const progress = easeOut(local / lengths[scene]);
       const zoom = [
         1.045 + progress * 0.075,
@@ -355,9 +367,12 @@ export async function renderVideo(
         bitmaps.find((f) => f.end > (t * 1000) % total) || bitmaps[0];
       const arrival = spring(local / 0.52);
       const pulse = 1 + level * 0.024;
-      const reactionY = 593 + Math.sin(t * 1.6) * 6;
+      const reactionY = (footage ? 678 : 593) + Math.sin(t * 1.6) * 6;
       ctx.save();
-      ctx.translate(W / 2 + Math.sin(t * 1.5) * 8, reactionY);
+      ctx.translate(
+        (footage ? W - 126 : W / 2) + Math.sin(t * 1.5) * 8,
+        reactionY,
+      );
       const halo = ctx.createRadialGradient(0, 5, 75, 0, 5, 224);
       halo.addColorStop(0, 'rgba(8,12,7,.22)');
       halo.addColorStop(0.64, 'rgba(8,12,7,.12)');
@@ -370,7 +385,14 @@ export async function renderVideo(
       ctx.shadowColor = 'rgba(0,0,0,.28)';
       ctx.shadowBlur = 24;
       ctx.shadowOffsetY = 12;
-      ctx.drawImage(frame.image, -180, -180, 360, 360);
+      const reactionSize = footage ? 185 : 360;
+      ctx.drawImage(
+        frame.image,
+        -reactionSize / 2,
+        -reactionSize / 2,
+        reactionSize,
+        reactionSize,
+      );
       ctx.restore();
 
       ctx.save();
@@ -383,7 +405,7 @@ export async function renderVideo(
       ctx.font = '700 12px Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('THE REACTION ↑', 0, 1);
+      ctx.fillText(footage ? 'THAT FEELING ↑' : 'THE REACTION ↑', 0, 1);
       ctx.restore();
 
       const brandArrival = easeOut(t / 0.45);
@@ -440,12 +462,20 @@ export async function renderVideo(
       ctx.fillStyle = 'rgba(247,245,233,.65)';
       ctx.font = '8.5px Arial, sans-serif';
       ctx.fillText(
-        'Animated emoji: Google Noto · CC BY 4.0 · resized / composited',
+        `${footage ? 'AI footage · LTX-Video | ' : ''}Emoji: Google Noto · CC BY 4.0 · composited`,
         W / 2,
         934,
       );
     }
     signal.throwIfAborted();
+    if (footage) {
+      footage.currentTime = 0;
+      footage.playbackRate = Math.max(
+        0.5,
+        Math.min(2, footage.duration / DURATION),
+      );
+      await footage.play();
+    }
     draw(0.65);
     const poster = canvas.toDataURL('image/jpeg', 0.85);
     draw(0);
@@ -507,6 +537,7 @@ export async function renderVideo(
       throw new Error('The video was incomplete. Please try again.');
     return { blob, poster };
   } finally {
+    footage?.pause();
     bitmaps.forEach((f) => f.image.close());
     try {
       source?.stop();

@@ -1,31 +1,32 @@
-import { checkGenerationAccess } from '@/lib/generation-access';
 import { verifyGenerationTicket } from '@/lib/generation-jobs';
-import { startGeneration } from '@/lib/generation-service';
+import { createRenderTicket } from '@/lib/tickets';
 import { RequestError } from '@/lib/server';
 
-export const maxDuration = 300;
-
-export async function POST(request: Request) {
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
   try {
     if (
       request.headers.get('origin') &&
       request.headers.get('origin') !== new URL(request.url).origin
     )
-      throw new RequestError('Please generate videos from the studio.', 403);
+      throw new RequestError('Please finish videos from the studio.', 403);
     const ticket = await verifyGenerationTicket(
       request.headers.get('x-generation-ticket') || '',
     );
-    const result = await startGeneration(ticket, () =>
-      checkGenerationAccess(request),
-    );
-    return Response.json(result, { status: 202 });
+    if (ticket.id !== (await context.params).id)
+      throw new RequestError('Invalid generation.', 403);
+    return Response.json({
+      renderTicket: await createRenderTicket(ticket.plan.product),
+    });
   } catch (error) {
     return Response.json(
       {
         error:
           error instanceof RequestError
             ? error.message
-            : 'Generation could not start. Please check the studio configuration.',
+            : 'Could not prepare the free-asset cut.',
       },
       { status: error instanceof RequestError ? error.status : 503 },
     );

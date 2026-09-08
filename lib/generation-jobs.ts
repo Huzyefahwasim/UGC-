@@ -17,11 +17,12 @@ import {
   storageMode,
 } from './storage.ts';
 import type { VideoPlan } from './types.ts';
+import { validShot } from './video-direction.ts';
 
 const LIFETIME = 24 * 60 * 60 * 1000;
 const MAX_TICKET_LENGTH = 7800;
 const MAX_RECORD_BYTES = 8192;
-const PURPOSE = 'cut-higgsfield-generation';
+const PURPOSE = 'cut-ltx-generation';
 type GenerationTicket = {
   v: 1;
   purpose: typeof PURPOSE;
@@ -34,12 +35,10 @@ type GenerationResult = { providerId?: string; error?: string };
 type RecordKind = 'claim' | 'result';
 
 function keyFor(purpose: 'ticket' | 'record') {
-  const secret =
-    process.env.RENDER_SIGNING_SECRET?.trim() ||
-    process.env.HF_API_KEY_SECRET?.trim();
+  const secret = process.env.RENDER_SIGNING_SECRET?.trim();
   if (!secret)
     throw new RequestError(
-      'Video generation is not connected yet. Ask the site owner to configure Higgsfield.',
+      'Video generation needs a stable RENDER_SIGNING_SECRET on the server.',
       503,
     );
   return createHmac('sha256', secret)
@@ -67,6 +66,7 @@ function validPlan(value: unknown): value is VideoPlan {
     'accent',
   ];
   return (
+    (plan.shot === undefined || validShot(plan.shot)) &&
     strings.every(
       (name) => typeof plan[name] === 'string' && plan[name].length <= 4096,
     ) &&
@@ -234,7 +234,7 @@ async function exists(key: string): Promise<boolean> {
 }
 
 // Never retry the provider submission after an ambiguous claim write. A lost
-// process may leave a pending claim, but cannot cause a second paid request.
+// process may leave a pending claim, but cannot cause a second GPU request.
 async function createImmutable(key: string, bytes: Buffer): Promise<boolean> {
   if (storageMode() === 'blob') {
     try {
@@ -307,7 +307,7 @@ function validResult(value: unknown): value is GenerationResult {
   return (
     (typeof result.providerId === 'string' &&
       result.providerId.length > 0 &&
-      result.providerId.length <= 512 &&
+      result.providerId.length <= 3072 &&
       result.error === undefined) ||
     (typeof result.error === 'string' &&
       result.error.length > 0 &&

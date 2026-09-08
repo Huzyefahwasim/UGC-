@@ -5,7 +5,7 @@ import {
   generationAccessRequired,
 } from '../lib/generation-access.ts';
 
-await test('paid generation access gate separates local development from public deployments', () => {
+await test('GPU generation access gate separates local development from public deployments', () => {
   const prior = {
     code: process.env.STUDIO_ACCESS_CODE,
     node: process.env.NODE_ENV,

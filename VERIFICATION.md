@@ -2,6 +2,24 @@
 
 > Deployment status: the user reported deleting the former ChatGPT Site. URLs in the earlier evidence below are historical and are not the current deliverable. The app is being prepared for user-managed Vercel hosting; no Vercel production deployment has been performed.
 
+## Current engine: LTX-Video — 2026-09-08
+
+The owner selected the official Lightricks LTX-Video 0.9.8 13B distilled Space to replace Higgsfield. The historical sections below describe earlier versions.
+
+- The real anonymous provider test succeeded in **22 seconds**. It generated six-second portrait plant-care footage using the product-specific director, 576 × 1024 inputs, distilled CFG 1 and multi-scale texture enhancement. No video API key or paid provider was used.
+- A new product URL, `https://www.bluebottlecoffee.com/`, was sent through the real chat UI. Product metadata and its directed brief were prepared, but the next anonymous LTX request returned a Gradio error. The simple API returned no exact reason; quota exhaustion or free GPU availability is possible, not established.
+- The user explicitly selected the free-asset fallback. It composed and saved an eight-second video for Blue Bottle Coffee: local path `/api/videos/e37cd536-de29-420f-bb8e-f3e7f0a6e4e1`.
+- The already generated **real LTX footage** was finished in a temporary local QA page. FFprobe measured H.264 at 720 × 1280, AAC audio, 6.008833 seconds and 2,378,213 bytes. Audio mean -23.6 dB, peak -3.6 dB. A three-frame contact sheet showed moving footage, three caption beats, changing GIF frames and branding. The export is upscaled, not native 720p generation.
+- A saved-result fixture reused that same real footage to exercise the normal app's resume → status → finishing → upload → video-in-chat path **without another GPU submission**. Result: `/api/videos/b1b63deb-6a1c-4c53-868d-c392a2cf8eb0`. Reload retained the result; browser playback reported 720 × 1280, 6.0103 seconds and readyState 4. The fixture was removed before the production build.
+- Final local sample: ignored `.artifacts/ltx-bloom-finished.mp4`. The app clearly labels AI footage and separately credits the GIF/music.
+- Greetings and capability questions returned normal chat responses with no generation plan.
+- **69 automated tests passed**, covering provider SSE parsing, failure sanitization, fixed media destinations, no retry on quota rejection, shot compilation, signed tickets, encrypted records, concurrent duplicate claims and existing upload/URL protections.
+- TypeScript, strict lint and the production build passed. Production routes contain no QA endpoint. Twelve production file traces were checked; none include `.env`, `.data`, `.artifacts`, `.agent-logs` or the temporary QA route.
+- No Vercel deployment was performed. The user is preparing a Hugging Face token; it and the optional chat-provider key were still empty at this verification checkpoint.
+
+Still to verify: a fresh product URL completing one uninterrupted real-provider run after the free account token is saved; fully AI-written conversation/direction after connecting the chat provider; actual Vercel Blob operations and signed-out public access on the user's deployment. The camera-on walkthrough remains user-recorded.
+
+
 ## Higgsfield engine and creator studio — 2026-09-08
 
 The user explicitly selected Higgsfield as the main video engine, superseding the original stock-only requirement. The active chat now submits remote generations instead of automatically invoking the legacy canvas renderer.

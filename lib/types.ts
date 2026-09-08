@@ -15,5 +15,6 @@ export type VideoPlan = {
   gif: string;
   audio: string;
   accent: string;
+  shot?: import('./video-direction').ShotDirection;
   credits: { label: string; url: string }[];
 };

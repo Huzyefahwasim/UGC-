@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { StudioWelcome } from './studio-welcome';
 import type { VideoPlan } from '@/lib/types';
+import { renderVideo } from '@/lib/render';
+import { loadFootage } from '@/lib/load-footage';
 type GenerationJob = {
   id: string;
   ticket: string;
@@ -39,7 +41,7 @@ type Message = {
     poster?: string;
     local?: boolean;
     format?: 'mp4' | 'webm';
-    provider?: 'higgsfield';
+    provider?: 'higgsfield' | 'ltx';
   };
   error?: boolean;
   retryPrompt?: string;
@@ -63,6 +65,124 @@ export default function Home() {
   const end = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const cancel = useRef<AbortController | null>(null);
+  const audio = useRef<AudioContext | null>(null);
+  function enableAudio() {
+    if (typeof AudioContext === 'undefined') return;
+    if (!audio.current || audio.current.state === 'closed')
+      audio.current = new AudioContext();
+    void audio.current.resume().catch(() => {});
+  }
+  async function finishCut(
+    job: GenerationJob,
+    renderTicket: string,
+    signal: AbortSignal,
+    footageUrl?: string,
+  ) {
+    setJobPhase('finishing');
+    setStatus('Adding animated captions, music and your reaction GIF…');
+    let footage: HTMLVideoElement | undefined;
+    try {
+      if (footageUrl) footage = await loadFootage(footageUrl, signal);
+      const result = await renderVideo(
+        job.plan,
+        (_progress, text) => setStatus(text),
+        signal,
+        audio.current || undefined,
+        footage,
+      );
+      setStatus('Saving your finished cut…');
+      let savedUrl: string | undefined;
+      try {
+        const response = await fetch('/api/videos', {
+          method: 'POST',
+          headers: {
+            'X-Render-Ticket': renderTicket,
+            'Content-Type': result.blob.type,
+          },
+          body: result.blob,
+          signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
+        });
+        const saved = await response.json();
+        if (response.ok && typeof saved.url === 'string') savedUrl = saved.url;
+      } catch (error) {
+        if (signal.aborted) throw error;
+        // The export already exists. Preserve a downloadable copy if storage
+        // or the network fails instead of discarding successful rendering.
+      }
+      const local = !savedUrl;
+      const url = savedUrl || URL.createObjectURL(result.blob);
+      const finalPlan = footageUrl
+        ? {
+            ...job.plan,
+            credits: [
+              {
+                label: 'AI footage · Lightricks LTX-Video',
+                url: 'https://huggingface.co/Lightricks/LTX-Video',
+              },
+              ...job.plan.credits.filter(
+                (credit) => !credit.label.startsWith('Photography'),
+              ),
+            ],
+          }
+        : job.plan;
+      setMessages((items) => [
+        ...items,
+        {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          text: `Your ${footageUrl ? 'LTX' : 'free-asset'} cut for ${job.plan.product} is ready.${local ? ' Online saving failed; download this copy before leaving.' : ' Play it with sound on.'}`,
+          video: {
+            url,
+            plan: finalPlan,
+            poster: result.poster,
+            local,
+            format: result.blob.type.includes('mp4') ? 'mp4' : 'webm',
+            ...(footageUrl ? { provider: 'ltx' as const } : {}),
+          },
+        },
+      ]);
+      setPendingJob(null);
+      setNotice('');
+    } finally {
+      if (footage) {
+        footage.pause();
+        footage.removeAttribute('src');
+        footage.load();
+      }
+    }
+  }
+  async function finishWithFreeAssets() {
+    if (!pendingJob || busyRef.current) return;
+    enableAudio();
+    setNotice('');
+    setStatus('Preparing your free-asset cut…');
+    busyRef.current = true;
+    setBusy(true);
+    const controller = new AbortController();
+    cancel.current = controller;
+    try {
+      const response = await fetch(
+        `/api/generations/${pendingJob.id}/fallback`,
+        {
+          method: 'POST',
+          headers: { 'X-Generation-Ticket': pendingJob.ticket },
+          signal: controller.signal,
+        },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      await finishCut(pendingJob, result.renderTicket, controller.signal);
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : 'Could not finish the cut.',
+      );
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+      cancel.current = null;
+      void audio.current?.close().catch(() => {});
+    }
+  }
   useEffect(() => {
     try {
       const saved = JSON.parse(sessionStorage.getItem('cut-chat-v1') || '{}');
@@ -98,6 +218,7 @@ export default function Home() {
       .catch(() => {});
     return () => {
       cancel.current?.abort();
+      void audio.current?.close().catch(() => {});
     };
   }, []);
   useEffect(() => {
@@ -188,13 +309,14 @@ export default function Home() {
   async function watchGeneration(job: GenerationJob, signal: AbortSignal) {
     setActivePlan(job.plan);
     setJobPhase('queued');
-    setStatus('Your video is in the Higgsfield queue…');
+    setStatus('Your video is in the free LTX queue…');
     // eslint-disable-next-line react/react-compiler -- This clock is read in an async event handler, never during render.
     const deadline = Date.now() + 20 * 60 * 1000;
     let failures = 0;
     // eslint-disable-next-line react/react-compiler -- Polling runs only after a user submits or resumes a job.
     while (Date.now() < deadline) {
       signal.throwIfAborted();
+      let finishing = false;
       try {
         const response = await fetch('/api/generations/' + job.id, {
           headers: { 'X-Generation-Ticket': job.ticket },
@@ -211,7 +333,7 @@ export default function Home() {
                 id: crypto.randomUUID(),
                 role: 'assistant',
                 error: true,
-                text: 'This generation session expired. Find your video in Higgsfield Cloud before starting a new cut.',
+                text: 'This generation session expired or belongs to the previous engine. Start a new LTX cut.',
               },
             ]);
             return;
@@ -221,41 +343,16 @@ export default function Home() {
         failures = 0;
         setJobPhase(result.status);
         if (result.status === 'completed' && result.url) {
-          setMessages((items) => [
-            ...items,
-            {
-              id: crypto.randomUUID(),
-              role: 'assistant',
-              text:
-                'Your Higgsfield video for ' +
-                job.plan.product +
-                ' is ready. Play it with sound on.',
-              video: {
-                url: result.url,
-                plan: job.plan,
-                format: 'mp4',
-                provider: 'higgsfield',
-              },
-            },
-          ]);
-          setPendingJob(null);
+          finishing = true;
+          await finishCut(job, result.renderTicket, signal, result.url);
           return;
         }
         if (['failed', 'nsfw', 'cancelled'].includes(result.status)) {
-          setPendingJob(null);
-          setMessages((items) => [
-            ...items,
-            {
-              id: crypto.randomUUID(),
-              role: 'assistant',
-              error: true,
-              text:
-                result.error ||
-                (result.status === 'nsfw'
-                  ? 'Higgsfield could not generate this brief under its content rules. Please try a different direction.'
-                  : 'Higgsfield did not complete this video. You can check the job in Higgsfield Cloud.'),
-            },
-          ]);
+          const note =
+            result.error ||
+            'LTX could not complete the footage. You can finish this brief with free assets.';
+          setPendingJob({ ...job, recoveryNote: note });
+          setNotice(note);
           return;
         }
         if (result.status === 'not_started') {
@@ -267,22 +364,22 @@ export default function Home() {
         if (
           result.status === 'submitting' &&
           // eslint-disable-next-line react/react-compiler -- Async job timeout, not render-time state.
-          Date.now() - job.startedAt > 90000
+          Date.now() - job.startedAt > 330000
         ) {
           setStatus(
-            'Submission could not be confirmed. Check Higgsfield Cloud before creating another video.',
+            'The LTX request did not finish in time. Use free assets, or close tracking and try a new cut later.',
           );
           return;
         }
         setStatus(
           result.status === 'in_progress'
-            ? 'Higgsfield is generating your footage and audio…'
+            ? 'LTX is generating your directed footage…'
             : result.status === 'submitting'
-              ? 'Sending your creative brief to Higgsfield…'
-              : 'Your video is in the Higgsfield queue…',
+              ? 'LTX is generating your shot. Shared GPU queues can take a few minutes…'
+              : 'Your video is in the free LTX queue…',
         );
       } catch (error) {
-        if (signal.aborted) throw error;
+        if (signal.aborted || finishing) throw error;
         failures++;
         if (failures >= 4)
           throw new Error(
@@ -310,13 +407,16 @@ export default function Home() {
     job: GenerationJob,
     controller: AbortController,
   ) {
+    setActivePlan(job.plan);
+    setJobPhase('queued');
+    setStatus('Generating your directed shot on the free LTX GPU…');
     const response = await fetch('/api/generations', {
       method: 'POST',
       headers: {
         'X-Generation-Ticket': job.ticket,
         'X-Studio-Access': accessCode,
       },
-      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(175000)]),
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(295000)]),
     });
     if (!response.ok) {
       const result = await response.json();
@@ -328,7 +428,7 @@ export default function Home() {
             id: crypto.randomUUID(),
             role: 'assistant',
             error: true,
-            text: 'This generation session expired. Find your video in Higgsfield Cloud before starting a new cut.',
+            text: 'This generation session expired or belongs to the previous engine. Start a new LTX cut.',
           },
         ]);
         return;
@@ -339,6 +439,7 @@ export default function Home() {
   }
   async function resumeGeneration() {
     if (!pendingJob || busyRef.current) return;
+    enableAudio();
     busyRef.current = true;
     setBusy(true);
     const controller = new AbortController();
@@ -347,7 +448,7 @@ export default function Home() {
       await runGeneration(pendingJob, controller);
     } catch (error) {
       const recoveryNote = controller.signal.aborted
-        ? 'Stopped checking. Your generation can continue in the background.'
+        ? 'Stopped checking. Your generation may continue in the background.'
         : error instanceof Error
           ? error.message
           : 'Please resume in a moment.';
@@ -357,11 +458,13 @@ export default function Home() {
       busyRef.current = false;
       setBusy(false);
       cancel.current = null;
+      void audio.current?.close().catch(() => {});
     }
   }
   async function send(value = draft) {
     const text = value.trim();
     if (!text || busyRef.current || pendingJob) return;
+    enableAudio();
     busyRef.current = true;
     setDraft('');
     setBusy(true);
@@ -416,7 +519,7 @@ export default function Home() {
           startedAt: Date.now(),
         };
         setPendingJob(job);
-        // Persist before submission so a reload or lost response cannot cause a second paid job.
+        // Persist before submission so a reload or lost response cannot cause a second GPU job.
         try {
           sessionStorage.setItem(
             'cut-chat-v1',
@@ -429,7 +532,7 @@ export default function Home() {
     } catch (error) {
       const errorText = controller.signal.aborted
         ? submittedJob
-          ? 'Stopped checking. Your generation can continue in the background.'
+          ? 'Stopped checking. Your generation may continue in the background.'
           : 'Stopped. Send another message whenever you’re ready.'
         : error instanceof Error
           ? error.message
@@ -453,6 +556,7 @@ export default function Home() {
       setBusy(false);
       cancel.current = null;
       input.current?.focus();
+      void audio.current?.close().catch(() => {});
     }
   }
   function newChat() {
@@ -512,7 +616,9 @@ export default function Home() {
                   onChange={(e) => setAccessCode(e.target.value)}
                   placeholder="Enter your studio code"
                 />
-                <small>Required to use this studio’s generation credits.</small>
+                <small>
+                  Protects this studio’s limited free GPU allowance.
+                </small>
               </div>
             </details>
           )}
@@ -522,15 +628,13 @@ export default function Home() {
               title={
                 generationReady
                   ? aiReady
-                    ? 'Higgsfield video and AI chat connected'
-                    : 'Higgsfield video connected; chat uses a basic brief planner'
-                  : 'Add your Higgsfield API credentials on the server to enable generation'
+                    ? 'LTX video and AI chat configured'
+                    : 'LTX video with a built-in shot planner; AI chat is optional'
+                  : 'Configure the signing secret and check the optional Hugging Face token'
               }
             >
               <span />
-              {generationReady
-                ? 'Higgsfield connected'
-                : 'Higgsfield not connected'}
+              {generationReady ? 'LTX · free demo' : 'LTX needs setup'}
             </span>
           )}
           <button
@@ -607,7 +711,7 @@ export default function Home() {
                         poster={message.video.poster}
                         aria-label={`${message.video.plan.product} marketing video`}
                       >
-                        {/* Higgsfield creates native dialogue; legacy music captions do not describe it. */}
+                        {/* LTX creates native dialogue; legacy music captions do not describe it. */}
                         {message.video.provider !== 'higgsfield' && (
                           <track
                             kind="captions"
@@ -618,9 +722,11 @@ export default function Home() {
                         )}
                       </video>
                       <span className="video-badge">
-                        {message.video.provider === 'higgsfield'
-                          ? 'HIGGSFIELD'
-                          : '8 SEC'}{' '}
+                        {message.video.provider === 'ltx'
+                          ? 'LTX · 6 SEC'
+                          : message.video.provider === 'higgsfield'
+                            ? 'HIGGSFIELD'
+                            : '8 SEC'}{' '}
                         <span>•</span> 9:16
                       </span>
                     </div>
@@ -696,6 +802,13 @@ export default function Home() {
                           Download to keep. Provider links are temporary.
                         </p>
                       )}
+                      {message.video.provider === 'ltx' && (
+                        <p className="provider-note">
+                          AI-generated footage · LTX-Video 0.9.8
+                          <br />
+                          Animated captions, music and GIF added by Cut.
+                        </p>
+                      )}
                       <details>
                         <summary>
                           {message.video.provider === 'higgsfield'
@@ -703,6 +816,11 @@ export default function Home() {
                             : 'What’s in this cut'}
                         </summary>
                         <p>{message.video.plan.description}</p>
+                        {message.video.plan.shot && (
+                          <p>
+                            {Object.values(message.video.plan.shot).join(' ')}
+                          </p>
+                        )}
                         <ol className="caption-list">
                           {message.video.plan.captions.map((caption, i) => (
                             <li key={i}>
@@ -771,7 +889,7 @@ export default function Home() {
                       <Clapperboard size={26} />
                       <div>
                         <strong>{activePlan.product}</strong>
-                        <span>Veo 3.1 Fast · 8 sec · 9:16 · Native audio</span>
+                        <span>LTX-Video · 6 sec · 9:16 · Directed footage</span>
                       </div>
                     </div>
                     <div
@@ -793,14 +911,15 @@ export default function Home() {
                         Queue
                       </span>
                       <span
-                        className={jobPhase === 'in_progress' ? 'active' : ''}
+                        className={jobPhase === 'finishing' ? 'active' : ''}
                       >
                         <MonitorPlay size={14} />
-                        Generate
+                        Finish
                       </span>
                     </div>
                     <span className="render-note">
-                      You can leave this tab. Resume checking when you return.
+                      {activePlan.shot?.action} Keep this tab visible while Cut
+                      adds captions, music and reactions.
                     </span>
                   </div>
                 )}
@@ -821,19 +940,26 @@ export default function Home() {
                   status ||
                   'Your generation is saved. Resume to check for the result.'}
               </p>
+              <button
+                type="button"
+                className="retry"
+                onClick={() => void finishWithFreeAssets()}
+              >
+                Use free assets instead
+              </button>
               <details className="tracking-options">
                 <summary>Recovery options</summary>
                 <a
-                  href="https://cloud.higgsfield.ai"
+                  href="https://huggingface.co/spaces/Lightricks/ltx-video-distilled"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Find the video in Higgsfield Cloud <ArrowUpRight size={12} />
+                  Check LTX availability <ArrowUpRight size={12} />
                 </a>
                 <p>
-                  Closing tracking does not cancel a generation or refund
-                  credits. Check Higgsfield before submitting the same brief
-                  again.
+                  Closing tracking does not stop an active request. The official
+                  demo shows availability; it does not hold this app’s job
+                  history.
                 </p>
                 <button
                   type="button"
@@ -843,7 +969,7 @@ export default function Home() {
                       {
                         id: crypto.randomUUID(),
                         role: 'assistant',
-                        text: `Tracking closed for ${pendingJob.plan.product}. ${pendingJob.recoveryNote || 'The generation may still be running. Check Higgsfield Cloud for the result before submitting it again.'}`,
+                        text: `Tracking closed for ${pendingJob.plan.product}. ${pendingJob.recoveryNote || 'You can start a new cut when you are ready.'}`,
                       },
                     ]);
                     setPendingJob(null);
@@ -924,7 +1050,7 @@ export default function Home() {
             <div className="composer-bottom">
               <span>
                 <span className="status-dot" />{' '}
-                {busy ? 'Generating with Higgsfield' : '8 sec · 9:16 · 720p'}
+                {busy ? 'Creating your cut' : '6 sec · 9:16 · LTX-Video'}
               </span>
               {busy ? (
                 <button
@@ -949,7 +1075,7 @@ export default function Home() {
             </div>
           </form>
           <div className="below-composer">
-            <span>AI video by Higgsfield · Uses your studio’s API credits</span>
+            <span>LTX-Video · Free daily GPU allowance · Shared queue</span>
             <span>
               Enter to send <i>·</i> Shift + Enter for a new line
             </span>

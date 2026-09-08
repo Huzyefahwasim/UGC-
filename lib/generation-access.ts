@@ -12,7 +12,7 @@ export function checkGenerationAccess(request: Request) {
   const code = process.env.STUDIO_ACCESS_CODE?.trim();
   if (!code && generationAccessRequired())
     throw new RequestError(
-      'The studio owner needs to configure a generation access code before enabling paid videos.',
+      'The studio owner needs to configure a generation access code to protect the free GPU allowance.',
       503,
     );
   if (!code) return;

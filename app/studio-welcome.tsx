@@ -84,7 +84,7 @@ export function StudioWelcome({
             <span className="type-ingredient">Aa</span> Strong hooks
           </span>
           <span>
-            <Music2 size={14} /> Native audio
+            <Music2 size={14} /> Music + reactions
           </span>
           <span>
             <Sparkles size={14} /> Vertical video
@@ -131,7 +131,7 @@ export function StudioWelcome({
               <span className="example-shade" />
               <span className="example-top">
                 <span>{example.type}</span>
-                <span>00:08</span>
+                <span>00:06</span>
               </span>
               <span className="example-caption">
                 <span>{example.hook[0]}</span>

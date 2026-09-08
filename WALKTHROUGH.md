@@ -1,29 +1,29 @@
-# Walkthrough script — target 3 minutes, under 5 minutes
+# Camera-on walkthrough — target three minutes
 
-Record this yourself with your camera ON, using Loom or a screen recorder with a webcam bubble. The final recording must be under five minutes. This script is a preparation aid, not a substitute for that recording.
+Record with your own camera on in Loom or a similar recorder. Keep the finished recording under five minutes. This script is not the recording.
 
-Before recording, complete [VERCEL.md](VERCEL.md), connect both Higgsfield API credentials and the separate chat provider key, and verify a real paid generation. No credentialed Higgsfield generation has been verified in this repository yet. The local legacy-renderer demos do not establish that the new provider path works end to end.
+Before recording, deploy using VERCEL.md, connect your free Hugging Face token and optional chat provider, and test an unfamiliar product URL. Save enough daily GPU allowance for the demonstration.
 
-0:00–0:20 — Open the public live link in a signed-out/incognito window. Show the camera bubble and enter the studio generation access code. “This is Cut: send a product link in chat, and it turns the brief into a short UGC-style video using Higgsfield.” Give intended reviewers the studio code separately so they can try it themselves.
+0:00–0:25 — Open the public Vercel URL in a signed-out window. Show the camera bubble and enter the studio code. “Cut turns a product link into a directed video with captions, music and a reaction GIF.”
 
-0:20–0:40 — Type “hi”, then “what can you do?” Show that ordinary conversation does not start a render.
+0:25–0:45 — Send “hi” and “what can you do?” Show that normal chat does not start a GPU generation. If no chat key is connected, describe it honestly as a basic conversational fallback.
 
-0:40–1:20 — Paste a real product URL you have not tried before, with a one-sentence description. Show the generation brief and queued/processing state. “The app reads the product page, writes a video brief, and submits it to Higgsfield. It checks for completion and returns the video here.”
+0:45–1:20 — Paste a new product URL with a visual preference, such as “warm morning light and a slow close-up.” Explain that page context informs one filmable shot rather than a generic long prompt.
 
-Generation time depends on the provider. If necessary, pause the recorder while the job processes and say that the wait was cut when recording resumes. Keep the final recording under five minutes; do not imply the displayed video duration is the generation time.
+Generation depends on a shared GPU queue. Pause the recorder if necessary and disclose that the wait was cut. Keep the app visible during finishing.
 
-1:20–1:55 — Play the finished video and show what this particular model actually produced. Open its output link in another tab and demonstrate downloading it. Do not promise a separate GIF layer, readable generated lettering, audio, or permanent hosting unless that result has been verified.
+1:20–2:10 — Play the result with sound. Point out generated footage, exact caption beats, animated GIF and music. Download it and open the saved link. Explain the AI footage is illustrative; do not imply it records a real customer.
 
-1:55–2:25 — Ask a normal follow-up about the product. If you demonstrate a creative revision, explain that it submits another generation and successful output uses more provider credits. Show that ordinary questions remain in chat.
+2:10–2:35 — Expand the brief to show the action, setting, camera and lighting. Explain that free GPU quota is limited and the app has an explicit free-asset fallback.
 
-2:25–3:00 — Open the public GitHub repository. Show CAPTURE-TEST.md and .agent-logs/ in the commit history. “Capture was tested in two real sessions before implementation, and logs were committed alongside the work.” Mention that Higgsfield is now the main engine; the earlier stock-asset canvas renderer remains in the codebase.
+2:35–3:00 — Show the public GitHub repository, CAPTURE-TEST.md and incremental .agent-logs commits.
 
-Keep credentials out of the recording. The chat API key and Higgsfield credentials are separate. Do not call the no-key conversational fallback a language model or claim that remote generation is free.
+Do not record secret keys. Provide the studio code to intended reviewers separately. Revisions consume new GPU time; do not promise unlimited free generation or Higgsfield-equivalent quality.
 
-Paste the actual recorded video URL in the submission's walkthrough field. Paste the live URL and public repository URL separately in the links field, clearly labeled.
+Submission fields:
 
-Live: use your new Vercel production URL after completing VERCEL.md. The former ChatGPT deployment was removed.
+- Walkthrough: the actual camera-on recording URL.
+- Live app: your Vercel production URL.
+- Public repository: https://github.com/Huzyefahwasim/UGC-
 
-Public repository: https://github.com/Huzyefahwasim/UGC-
-
-The deployment, credentialed provider verification, and camera-on recording still need to be completed before submission.
+Deployment and the camera-on recording remain the user's handoff tasks.

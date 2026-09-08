@@ -9,6 +9,7 @@ export type PreviousProduct = {
   captions?: string[];
 };
 export type CreativeReply = {
+  shot?: import('./video-direction').ShotDirection;
   kind: 'chat' | 'render';
   reply: string;
   product?: string;
@@ -104,7 +105,7 @@ export function fallbackReply(
     return {
       kind: 'render',
       reply: quoted
-        ? 'The same product brief with your new hook. Higgsfield will create a fresh generation.'
+        ? 'The same product brief with your new hook. LTX-Video will create a fresh generation.'
         : 'Here’s another cut with a fresh hook and closing line.',
       ...previous,
       category: previous.category || categoryFor(previous.description),
@@ -129,7 +130,7 @@ export function fallbackReply(
     return {
       kind: 'chat',
       reply:
-        'Hey! What are you building? Send a product link or a short description, and I’ll make you an eight-second video.',
+        'Hey! What are you building? Send a product link or a short description, and I’ll make you a six-second video.',
     };
   if (/^(thanks|thank you|nice|great|awesome|love it)[!.\s]*$/i.test(latest))
     return {
@@ -146,7 +147,7 @@ export function fallbackReply(
     return {
       kind: 'chat',
       reply:
-        'Send a product URL or introduce it like “I’m building Bloom, a plant-care app.” I’ll prepare a creative brief and use Higgsfield to generate an eight-second vertical video with audio. Then you can ask for a punchier or more playful hook.',
+        'Send a product URL or introduce it like “I’m building Bloom, a plant-care app.” I’ll direct a six-second LTX-Video shot, then add animated captions, music and a reaction GIF. Then you can ask for a punchier or more playful hook.',
     };
   if (intent === 'render')
     return {

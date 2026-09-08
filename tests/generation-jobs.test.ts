@@ -121,7 +121,7 @@ void test('generation tickets and durable submission records', async (t) => {
         status(403),
       );
       const key = createHmac('sha256', process.env.RENDER_SIGNING_SECRET!)
-        .update('cut-higgsfield-generation:ticket:v1')
+        .update('cut-ltx-generation:ticket:v1')
         .digest();
       for (const change of [
         { purpose: 'legacy-render' },
@@ -171,10 +171,8 @@ void test('generation tickets and durable submission records', async (t) => {
       await assert.rejects(claimGeneration(randomUUID()), status(503));
       delete process.env.BLOB_READ_WRITE_TOKEN;
       process.env.HF_API_KEY_SECRET = 'unit-test-provider-secret';
-      const ticket = await createGenerationTicket(plan, '');
-      assert.deepEqual((await verifyGenerationTicket(ticket)).plan, plan);
+      await assert.rejects(createGenerationTicket(plan, ''), status(503));
       process.env.RENDER_SIGNING_SECRET = 'unit-test-generation-secret';
-      await assert.rejects(verifyGenerationTicket(ticket), status(403));
       delete process.env.HF_API_KEY_SECRET;
     },
   );

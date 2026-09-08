@@ -1,16 +1,10 @@
 # Media sources and attribution
 
-## Main generation engine: Higgsfield
+## AI footage
 
-Cut now submits product briefs to the Higgsfield API to generate its main video output. These clips are AI-generated media. They are not recordings of real customers using or endorsing a product.
+Cut uses Lightricks LTX-Video 0.9.8 13B distilled through its official Hugging Face Space. AI footage is disclosed in the output and does not represent real customer endorsement. The model uses its [Open Weights License](https://huggingface.co/Lightricks/LTX-Video/blob/main/LTX-Video-Open-Weights-License-0.X.txt); model terms apply separately from application code.
 
-Model capabilities determine the generated picture, sound, and text. The main engine does not automatically composite the stock photos, Google Noto GIFs, or Mixkit music listed below, and it does not guarantee a separate GIF layer or currently trending audio.
-
-See the [Higgsfield API documentation](https://docs.higgsfield.ai/docs) and manage API credentials in [Higgsfield Cloud](https://cloud.higgsfield.ai). Provider/model terms apply to generated media. Download completed output if you need to retain it; provider-hosted output links are not permanent storage.
-
-## Bundled assets for the legacy canvas renderer
-
-The earlier local canvas renderer and its assets remain in the repository. That renderer assembles existing media and does not generate images, GIFs, or music. It is not the default engine and is not silently used when Higgsfield credentials are missing.
+Cut adds the GIF and music below to generated footage. Photography is used for concept previews and the explicitly selected free-asset fallback.
 
 ## Animated reactions
 
@@ -25,7 +19,7 @@ Original GIF URLs:
 - Muscle: https://fonts.gstatic.com/s/e/notoemoji/latest/1f4aa/512.gif
 - Partying face: https://fonts.gstatic.com/s/e/notoemoji/latest/1f973/512.gif
 
-The legacy canvas renderer decodes, resizes and composites these animations onto video. They are not original Cut artwork.
+The canvas renderer decodes, resizes and composites these animations onto video. They are not original Cut artwork.
 
 ## Photography
 
@@ -49,4 +43,4 @@ Source audio: https://assets.mixkit.co/music/872/872.mp3
 
 Mixkit Stock Music Free License: https://mixkit.co/license/#musicFree
 
-The legacy canvas video uses an eight-second excerpt with a short fade-out. It is a licensed energetic stock track, not a claim of current chart/trend status. Source media is third-party content and is not relicensed as project code.
+The canvas video uses a six- or eight-second excerpt with a short fade-out. It is a licensed energetic stock track, not a claim of current chart/trend status. Source media is third-party content and is not relicensed as project code.

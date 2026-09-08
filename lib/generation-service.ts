@@ -3,7 +3,7 @@ import {
   readGeneration,
   recordGeneration,
 } from './generation-jobs.ts';
-import { submitVideo } from './higgsfield.ts';
+import { submitVideo } from './ltx.ts';
 import { RequestError } from './server.ts';
 import type { VideoPlan } from './types.ts';
 
@@ -24,7 +24,7 @@ const defaults: Dependencies = {
 };
 
 const UNCONFIRMED =
-  'We could not confirm the generation submission. Check Higgsfield Cloud before starting another cut; a generation may already be running.';
+  'We could not finish this LTX request. No automatic retry was submitted. Try later or create a cut with free assets.';
 
 async function persist(
   id: string,
@@ -50,7 +50,7 @@ function submissionFailure(error: unknown): {
 } {
   // These provider RequestErrors come from explicit HTTP rejections or missing
   // configuration. Network/malformed-response/timeout errors (502/504) cannot
-  // establish that the provider did not accept the billable request.
+  // establish that the provider did not accept the quota-consuming request.
   if (error instanceof RequestError && [400, 429, 503].includes(error.status))
     return { message: error.message, status: error.status };
   return { message: UNCONFIRMED, status: 502 };
@@ -62,7 +62,7 @@ export async function startGeneration(
   dependencies: Dependencies = defaults,
 ): Promise<{ id: string }> {
   const { id, plan, direction } = ticket;
-  // Authorization is needed only for a new billable operation. A ticket owner
+  // Authorization is needed only for a new quota-consuming operation. A ticket owner
   // can resume the already claimed operation without spending credits again.
   if ((await dependencies.read(id)).claimed) return { id };
   authorizeNewSubmission();
@@ -78,20 +78,20 @@ export async function startGeneration(
       await persist(id, { error: failure.message }, dependencies.record);
     } catch {
       throw new RequestError(
-        `${failure.message} The studio could not save the job status. Keep this conversation and check Higgsfield Cloud before creating another video.`,
+        `${failure.message} The studio could not save the job status. Keep this conversation and resume to check it.`,
         failure.status,
       );
     }
     return { id };
   }
 
-  // A confirmed provider ID must never be replaced by an error record. If the
-  // store remains unavailable, give the owner the ID needed for Cloud recovery.
+  // A completed footage reference must never be replaced by an error record.
+  // Persistence retries reuse the result, without spending more GPU quota.
   try {
     await persist(id, { providerId: submitted.id }, dependencies.record);
   } catch {
     throw new RequestError(
-      `Higgsfield accepted your video, but the studio could not save its tracking record. Your Higgsfield job ID is ${submitted.id}. Keep this ID and find the video in Higgsfield Cloud. Do not start another cut for this request; the original may still be running.`,
+      'LTX finished the footage, but the studio could not save it. Storage needs attention before another generation. No automatic retry was submitted.',
       503,
     );
   }

@@ -1,10 +1,11 @@
 import { runtime } from '@/lib/server';
 import { storageConfigured, storageMode } from '@/lib/storage';
-import { configured } from '@/lib/higgsfield';
+import { configured, authenticated } from '@/lib/ltx';
 import { generationAccessRequired } from '@/lib/generation-access';
 export async function GET() {
   const storageReady = storageConfigured();
-  const generationReady = configured();
+  const generationReady =
+    configured() && Boolean(process.env.RENDER_SIGNING_SECRET?.trim());
   const accessReady =
     !generationAccessRequired() ||
     Boolean(process.env.STUDIO_ACCESS_CODE?.trim());
@@ -14,7 +15,8 @@ export async function GET() {
       status: ready ? 'ok' : 'setup_required',
       aiConfigured: !!runtime().OPENAI_API_KEY,
       generationConfigured: generationReady,
-      generationProvider: 'higgsfield',
+      generationProvider: 'ltx',
+      generationAuthenticated: authenticated(),
       generationAccessRequired: generationAccessRequired(),
       generationAccessConfigured: accessReady,
       storageConfigured: storageReady,
