@@ -50,7 +50,8 @@ export function capture() {
       const old = fs.readFileSync(target, 'utf8').split('\n\n---\n\n')[1];
       if (old && !entries.startsWith(old)) throw new Error(`Refusing to rewrite captured entries: ${target}`);
     }
-    fs.writeFileSync(target, header + entries, 'utf8');
+    const document = header + entries;
+    if (!fs.existsSync(target) || fs.readFileSync(target, 'utf8') !== document) fs.writeFileSync(target, document, 'utf8');
   }
 }
 capture();
