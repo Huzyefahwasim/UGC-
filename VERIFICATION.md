@@ -2,6 +2,22 @@
 
 > Deployment status: the user reported deleting the former ChatGPT Site. URLs in the earlier evidence below are historical and are not the current deliverable. The app is being prepared for user-managed Vercel hosting; no Vercel production deployment has been performed.
 
+## Vercel preparation and improvements — 2026-09-08
+
+- Source checkpoint: `3637af8`, pushed to the user's existing public GitHub repository. No Vercel account was accessed and no deployment was created.
+- Replaced Vinext/Cloudflare/Sites runtime configuration with Next.js 16.3.4 and Vercel Blob support. Removed the deleted Site's hosting manifest. Local development uses `.data/`; production refuses ephemeral disk fallback.
+- `npm test`: 40 tests passed. TypeScript and scoped strict lint passed. `npm run build` succeeded without warnings. Production dependency audit found zero vulnerabilities.
+- Production output traces were checked: zero local `.data`, `.env`, `.artifacts`, or `.agent-logs` files are included in the server artifact. Public prompt/response logs remain in the GitHub repository as requested.
+- Browser greeting test returned a normal response and no render. Reload retained the conversation. New chat cleared the session's visible history.
+- A text-only Bloom introduction rendered end to end. Export: H.264 at 720 × 1280 with AAC, 8.020900 seconds, 2,990,662 bytes. Audio mean -23.0 dB, peak -3.8 dB.
+- Exact hook revision `Change the hook to "Your plants have a new plus-one."` rendered another video. The result's caption details retained the original benefit and closing caption.
+- HTTP integration check: a new Bloom product after a CalAI previous plan returned an empty product URL, confirming that the old product website is not inherited.
+- Fresh URL browser test: `Can you make a video for https://linear.app?` read real page metadata and rendered successfully. Large HTML pages retain a safe capped prefix instead of failing solely due to page size.
+- Linear result: `/api/videos/90ab5aab-089c-4f60-8030-6774a120ccab` on the local preview. Export: H.264 at 720 × 1280 with AAC, 8.020400 seconds, 3,184,121 bytes. A three-frame contact sheet showed relevant captions, changing reaction GIF frames, background movement, product URL and attribution.
+- The local preview was bound to `127.0.0.1`. No public hosting was started.
+
+Remaining checks require the user's deployment credentials: actual Vercel Blob storage operations, public Vercel access, and full AI conversation using a connected provider. Blob delivery behavior is covered by isolated tests, not a claimed production deployment. The camera-on walkthrough also remains user-recorded.
+
 ## Capture
 
 - Two real independent Codex sessions, with verbatim canary prompts and final answers in .agent-logs/.
