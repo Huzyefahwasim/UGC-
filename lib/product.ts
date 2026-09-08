@@ -54,15 +54,20 @@ export function publicAddress(ip: string): boolean {
   );
 }
 export function categoryFor(text: string): Category {
-  if (/calori|nutrition|meal|food|recipe|diet|eat|cook|restaurant/i.test(text))
-    return 'food';
-  if (/fitness|workout|gym|running|exercise|training/i.test(text))
-    return 'fitness';
-  if (/beauty|skincare|skin care|makeup|cosmetic|serum/i.test(text))
-    return 'beauty';
-  if (/travel|trip|hotel|flight|holiday|vacation/i.test(text)) return 'travel';
   if (
-    /productivity|note|task|meeting|schedule|project|workspace|software|developer/i.test(
+    /\b(?:calories?|caloric|nutrition(?:al)?|meals?|foods?|recipes?|diet(?:ing)?|eat(?:ing)?|cook(?:ing)?|restaurants?)\b/i.test(
+      text,
+    )
+  )
+    return 'food';
+  if (/\b(?:fitness|workouts?|gym|running|exercise|training)\b/i.test(text))
+    return 'fitness';
+  if (/\b(?:beauty|skincare|skin care|makeup|cosmetics?|serums?)\b/i.test(text))
+    return 'beauty';
+  if (/\b(?:travel|trips?|hotels?|flights?|holidays?|vacations?)\b/i.test(text))
+    return 'travel';
+  if (
+    /\b(?:productivity|notes?|tasks?|meetings?|schedule|projects?|workspace|software|developers?|drawing|design|markdown)\b/i.test(
       text,
     )
   )
@@ -134,7 +139,12 @@ export function makePlan(
   const defaultCaptions = [
     `You just found ${product}`,
     description
-      ? description.split(/[.!]/)[0].slice(0, 85)
+      ? description.split(/[.!]/)[0].length > 85
+        ? description
+            .split(/[.!]/)[0]
+            .slice(0, 82)
+            .replace(/\s+\S*$/, '') + '…'
+        : description.split(/[.!]/)[0]
       : 'Your new favorite just entered the chat',
     `Meet ${product}. You're welcome.`,
   ];

@@ -153,10 +153,10 @@ export async function POST(request: Request) {
           reply: `Here’s a fresh cut for ${productData.product}, with a reaction GIF and a punchy three-beat story.`,
           product: productData.product,
           description:
-            productData.description || productData.body.slice(0, 150),
-          category: categoryFor(
-            productData.description + ' ' + productData.body,
-          ),
+            latest.match(/,\s*((?:an?|the)\s+[^.!?\n]{3,140})/i)?.[1] ||
+            productData.description ||
+            productData.body.slice(0, 150),
+          category: categoryFor(latest + ' ' + productData.description),
         };
       else
         result = {

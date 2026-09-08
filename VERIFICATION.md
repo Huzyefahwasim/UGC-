@@ -29,3 +29,20 @@
 - Public deployed URL without sign-in.
 - Fresh product URL rendered end-to-end on the deployment.
 - User-recorded camera-on walkthrough under five minutes.
+
+## Public deployment and first fresh-URL test
+
+- Live site: https://ugc-cut-huzyefah.jeremy767623.chatgpt.site
+- A cookie-free HTTPS request returned 200 and the actual app HTML; no sign-in redirect.
+- First previously untested URL: https://bear.app, sent through the live chat UI.
+- Uploaded video: /api/videos/4ff3a692-9a19-456b-974c-a0e0353453a5.mp4.
+- Cookie-free video download succeeded. FFprobe measured 8.006733 seconds, H.264 at 540 × 960, AAC, 1,228,237 bytes.
+- Audio mean -23.0 dB and peak -3.6 dB.
+- Upload without a render ticket returned 403. Byte-range retrieval returned 206 and the requested 1,024 bytes.
+- Visual inspection caught a category bug: substring matching of `eat` in `create` incorrectly picked food for a notes app. Matching now uses word boundaries and prioritizes the user's description plus product metadata. Added a regression test; all seven tests passed. Local readback now selects productivity.jpg and mind-blown.gif for Bear.
+- WebMCP draft_chat_message was exercised with a valid product prompt and rejected an empty prompt without changing the chat.
+- GitHub API confirmed isPrivate=false and listed the three capture session files.
+
+## Capture publication boundary
+
+A proposed background auto-push of future log entries was rejected by automatic approval review because future user prompts might contain sensitive information. That proposed feature was removed before execution. Capture remains automatic; known, reviewed logs are committed at explicit checkpoints. The final response of an ongoing turn can only be captured after it is emitted, so that last entry may be local until the next reviewed checkpoint.

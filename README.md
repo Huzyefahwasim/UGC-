@@ -1,5 +1,9 @@
 # Cut
 
+Live: https://ugc-cut-huzyefah.jeremy767623.chatgpt.site
+
+Repository: https://github.com/Huzyefahwasim/UGC-
+
 A chat-first UGC video studio. Send a product link, have a normal conversation, and get an eight-second vertical video in the same thread.
 
 ## Run locally
@@ -45,3 +49,4 @@ Anonymous usage is limited per IP per hour. The R2 counter is a lightweight, non
 ## Agent capture
 
 `CAPTURE-TEST.md` records two genuine canary sessions before app implementation. `.agent-logs/` contains raw user prompts and final responses, with UTC timestamps and model identifiers, interleaved with implementation commits. The capture watcher excludes internal approval sessions, tools and reasoning. See `scripts/capture.mjs` and `.codex/config.toml`.
+

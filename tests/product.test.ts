@@ -8,8 +8,19 @@ import {
   metadata,
   makePlan,
   categories,
+  categoryFor,
 } from '../lib/product.ts';
 import { parseGIF, decompressFrames } from 'gifuct-js';
+
+test('notes and design do not become food through substrings like create or great', () => {
+  assert.equal(
+    categoryFor('Bear creates beautiful markdown notes. Great ideas.'),
+    'productivity',
+  );
+  assert.equal(categoryFor('Create a drawing with your team'), 'productivity');
+  assert.equal(categoryFor('A calorie-tracking app for meals'), 'food');
+  assert.equal(categoryFor('A skincare serum'), 'beauty');
+});
 test('finds bare and full product links and strips sentence punctuation', () => {
   assert.equal(
     extractUrl("I'm building CalAI: calai.app."),
