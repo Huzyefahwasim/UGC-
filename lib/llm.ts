@@ -47,7 +47,7 @@ export async function creativeCompletion(
         max_tokens: 1100,
         ...(settings.provider === 'openrouter'
           ? {
-              reasoning: { effort: 'none', exclude: true },
+              reasoning: { enabled: false, exclude: true },
               provider: {
                 allow_fallbacks: false,
                 max_price: { prompt: 0, completion: 0, request: 0 },

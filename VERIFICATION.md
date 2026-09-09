@@ -167,3 +167,7 @@ Remaining checks require the user's deployment credentials: actual Vercel Blob s
 ## Capture publication boundary
 
 A proposed background auto-push of future log entries was rejected by automatic approval review because future user prompts might contain sensitive information. That proposed feature was removed before execution. Capture remains automatic; known, reviewed logs are committed at explicit checkpoints. The final response of an ongoing turn can only be captured after it is emitted, so that last entry may be local until the next reviewed checkpoint.
+
+## OpenRouter live preflight — pending switch
+
+The locally saved OpenRouter key was tested against nvidia/nemotron-3-ultra-550b-a55b:free with zero-price routing and no provider fallback. Three requests did not return a complete result within 65 seconds, including short greetings and explicit reasoning disabled. Authentication success was not established by these timeouts. The model catalog reports optional reasoning; the adapter now sends enabled:false instead of unsupported effort:none. Seven LLM adapter tests and lint passed. Production remains on Gemini; no paid endpoint was used.

@@ -211,6 +211,7 @@ void test('OpenRouter uses the exact free model and its own credentials without 
       const body = JSON.parse(init!.body as string);
       assert.equal(body.model, 'nvidia/nemotron-3-ultra-550b-a55b:free');
       assert.equal(body.response_format, undefined);
+      assert.deepEqual(body.reasoning, { enabled: false, exclude: true });
       assert.deepEqual(body.provider, {
         allow_fallbacks: false,
         max_price: { prompt: 0, completion: 0, request: 0 },
