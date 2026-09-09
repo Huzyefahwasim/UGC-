@@ -6,7 +6,7 @@ export type Category =
   | 'travel'
   | 'general';
 export type VideoPlan = {
-  engine?: 'wan' | 'ltx';
+  engine?: 'stock' | 'wan' | 'ltx';
   reference?: import('./wan-config').WanReference;
   product: string;
   url: string;

@@ -153,3 +153,15 @@ void test('an exact quoted hook revision preserves the product and both other ca
 void test('a revision without a previous product asks for context instead of inventing a render', () => {
   assert.equal(fallbackReply('Make the hook punchier').kind, 'chat');
 });
+
+void test('a readable product link has enough context to render without asking for a description', () => {
+  const reply = fallbackReply('cherrytreesolution.com', {
+    product: 'Cherry Tree Solutions',
+    description: 'Accounting and AI automation for businesses',
+    body: 'Audit ready books, call answering and lead follow-up.',
+  });
+  assert.equal(reply.kind, 'render');
+  assert.match(reply.description || '', /Accounting/);
+  assert.equal(fallbackReply('hi').kind, 'chat');
+  assert.equal(fallbackReply('what can you do?').kind, 'chat');
+});

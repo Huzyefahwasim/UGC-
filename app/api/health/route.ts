@@ -1,11 +1,10 @@
 import { runtime } from '@/lib/server';
 import { storageConfigured, storageMode } from '@/lib/storage';
-import { configured, authenticated } from '@/lib/ltx';
+
 import { generationAccessRequired } from '@/lib/generation-access';
 export async function GET() {
   const storageReady = storageConfigured();
-  const generationReady =
-    configured() && Boolean(process.env.RENDER_SIGNING_SECRET?.trim());
+  const generationReady = Boolean(process.env.RENDER_SIGNING_SECRET?.trim());
   const accessReady =
     !generationAccessRequired() ||
     Boolean(process.env.STUDIO_ACCESS_CODE?.trim());
@@ -17,8 +16,8 @@ export async function GET() {
       aiProvider: runtime().provider,
       aiModel: runtime().model,
       generationConfigured: generationReady,
-      generationProvider: 'wan',
-      generationAuthenticated: authenticated(),
+      generationProvider: 'stock',
+      generationAuthenticated: true,
       generationAccessRequired: generationAccessRequired(),
       generationAccessConfigured: accessReady,
       storageConfigured: storageReady,

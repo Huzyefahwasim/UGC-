@@ -254,7 +254,7 @@ export function fallbackReply(
     return {
       kind: 'chat',
       reply:
-        'Hey! What are you building? Send a product link or a short description, and I’ll make you a six-second video.',
+        'Hey! What are you building? Send a product link or a short description, and I’ll make you a eight-second video.',
     };
   if (/^(thanks|thank you|nice|great|awesome|love it)[!.\s]*$/i.test(latest))
     return {

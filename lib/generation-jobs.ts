@@ -69,6 +69,7 @@ function validPlan(value: unknown): value is VideoPlan {
   ];
   return (
     (plan.engine === undefined ||
+      plan.engine === 'stock' ||
       plan.engine === 'ltx' ||
       plan.engine === 'wan') &&
     (plan.reference === undefined || validWanReference(plan.reference)) &&

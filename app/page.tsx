@@ -115,7 +115,7 @@ export default function Home() {
     }
   }
   useEffect(() => {
-    if (!pendingId || !pendingTicket) return;
+    if (!pendingId || !pendingTicket || quotaEngine === 'stock') return;
     const control = new AbortController();
     // Restore terminal state for older saved chats without resubmitting a job.
     void fetch('/api/generations/' + pendingId, {
@@ -218,7 +218,7 @@ export default function Home() {
         {
           id: crypto.randomUUID(),
           role: 'assistant',
-          text: `${planReaction(job.plan).emoji} Your ${footageUrl ? '' : 'stock-asset '}cut for ${job.plan.product} is ready.${local ? ' Online saving failed; download this copy before leaving.' : ' Sound on for the full effect.'}`,
+          text: `${planReaction(job.plan).emoji} Your cut for ${job.plan.product} is ready.${local ? ' Online saving failed; download this copy before leaving.' : ' Sound on for the full effect.'}`,
           video: {
             url,
             plan: finalPlan,
@@ -507,6 +507,18 @@ export default function Home() {
     controller: AbortController,
   ) {
     setActivePlan(job.plan);
+    if (job.plan.engine === 'stock') {
+      const response = await fetch('/api/generations/' + job.id + '/fallback', {
+        method: 'POST',
+        headers: { 'X-Generation-Ticket': job.ticket },
+        signal: controller.signal,
+      });
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(result.error || 'Could not prepare this cut.');
+      await finishCut(job, result.renderTicket, controller.signal);
+      return;
+    }
     setJobPhase('queued');
     setStatus('Bringing your scene to life…');
     const response = await fetch('/api/generations', {
@@ -1060,7 +1072,7 @@ export default function Home() {
                       </span>
                       <div>
                         <strong>{activePlan.product}</strong>
-                        <span>Your next six-second story</span>
+                        <span>Your next eight-second story</span>
                       </div>
                       <span className="generation-wave" aria-hidden="true">
                         <i />

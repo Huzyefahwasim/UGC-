@@ -1,6 +1,6 @@
 # Cut
 
-Send a product URL. Cut reads the product context, automatically selects a licensed category scene and animates it with **Wan 2.2**, then adds captions, licensed music and a contextual GIF to return a finished vertical video.
+Send a product URL. Cut reads the page and assembles an eight-second vertical video from four layers: a licensed photo, animated captions, music and a contextual GIF. AI organizes the assets; it does not generate footage.
 
 Public repository: https://github.com/Huzyefahwasim/UGC-
 
@@ -13,10 +13,10 @@ Requires Node 22.13+ and npm.
 1. Run `npm ci`.
 2. Copy `.env.example` to ignored `.env`.
 3. Generate a random `RENDER_SIGNING_SECRET` using the command in that file.
-4. Optionally add a free Hugging Face read token as `HUGGINGFACE_TOKEN`.
+4. Add your Gemini key for conversational replies and product-specific copy.
 5. Run `npm run dev` and open http://localhost:3000.
 
-No Higgsfield credentials are used. The free community Wan demo uses a shared GPU allowance. A Hugging Face token attributes requests to your account. It is separate from the optional chat provider key.
+Normal creation requires no video-generation API or GPU allowance. Legacy AI video jobs remain readable.
 
 ## Video flow
 
@@ -24,11 +24,8 @@ No Higgsfield credentials are used. The free community Wan demo uses a shared GP
 - Product-page metadata, audience, use moment and user preferences inform the hook, benefit, CTA and one filmable scene. Caption-only revisions preserve the established scene.
 - Eleven curated animated reactions match the product and tone: calm for meditation, thinking for learning, coffee for rituals, leaf for plant care, and others. Calm/thoughtful concepts get a quieter soundtrack, restrained motion and smaller captions above the face.
 - No image input is required. Cut selects a licensed stock scene from the product category behind the scenes; the chat contains only the message input.
-- Wan animates the reference into five-second silent footage. The browser gently slows it into a six-second vertical edit.
-- The browser composites the footage with animated captions, a beat-reactive Google Noto GIF, music and a product CTA, then saves the export.
-- Keep the tab visible during the six-second finishing step. A failed finish can reuse the saved footage without another GPU submission.
-- If Wan rejects a request, explicitly choose **Finish with stock assets** to render an eight-second stock-photo cut. This result is clearly labeled.
-- Failed jobs offer **Retry footage**, preserving the exact brief. This starts one new attempt; repeated clicks or lost responses reuse that same retry. **Check availability** only reads the allowance and never starts a video.
+- The browser animates the background photo and composites captions, a beat-reactive Google Noto GIF, music and a product CTA, then saves the export.
+- Keep the tab visible during the eight-second composition.
 - Conversation and unfinished jobs survive reloads in the current tab's session.
 
 See [DIRECTION.md](DIRECTION.md) for prompt construction and [ASSETS.md](ASSETS.md) for attribution.
@@ -37,9 +34,9 @@ See [DIRECTION.md](DIRECTION.md) for prompt construction and [ASSETS.md](ASSETS.
 
 A connected Gemini chat provider writes bespoke shot directions from the conversation and webpage. Without it, the built-in deterministic director recognizes product contexts and camera/light preferences. It is useful for basic briefs but is not a general conversational language model.
 
-The main engine is Wan 2.2 I2V A14B with Lightx2v acceleration: four steps, guidance 1/1 and a five-second request. The 480 × 704 reference becomes footage that is cropped and upscaled to 720 × 1280, not native 720p generation. [Selected community demo](https://huggingface.co/spaces/dream2589632147/Dream-wan2-2-faster-Pro). LTX remains for already-signed legacy jobs and saved results.
+Normal creation uses the bundled licensed asset library. Stock scenes are illustrative, not exact product photos. Music is licensed and selected for mood; no live trend feed is connected, so current trending status is not claimed.
 
-Reference images and prompts are sent to the community Space, whose temporary files and prompt history may be public. Use material suitable for sharing. Gemini supplies product facts and captions but does not visually analyze the attachment. The motion instructions prioritize the pictured subjects and setting. Stock scenes are illustrative, not real product photos.
+Legacy Wan and LTX integrations are retained solely for existing saved jobs.
 
 ## Server configuration
 
