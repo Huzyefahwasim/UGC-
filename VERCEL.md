@@ -8,7 +8,7 @@ Normal creation assembles licensed assets in the browser. It requires no GPU, Hu
 2. Choose a supported Node version satisfying 22.13+. Install with `npm ci`, build with `npm run build`.
 3. Connect a **public Vercel Blob** store and expose `BLOB_READ_WRITE_TOKEN` to the deployment.
 4. Set a stable random `RENDER_SIGNING_SECRET`.
-5. Set `AI_PROVIDER=openrouter` and `OPENROUTER_API_KEY`. The exact free Nemotron model is selected in code.
+5. Set `AI_PROVIDER=openrouter` and `OPENROUTER_API_KEY`. The exact free Laguna S 2.1 model is selected in code.
 6. Deploy. The chat route declares a 90-second maximum; ensure your runtime supports its configuration. Normal composition runs in the browser.
 7. Configure deployment protection so intended signed-out reviewers can open the page.
 
@@ -32,5 +32,5 @@ Exports are public to anyone with their URL, authorized by signed permits and ca
 Older Wan/LTX compatibility routes retain their own tokens, quotas and longer timeouts. Those are not part of new asset-assembled cuts.
 
 
-Production uses UGC_READ_WRITE_TOKEN for Blob. For OpenRouter, set UGC_AI_PROVIDER=openrouter and UGC_OPENROUTER_API_KEY as a secret, then redeploy. The model is fixed to nvidia/nemotron-3-ultra-550b-a55b:free with zero-priced routing. Verify conversation and a complete product render before considering the switch complete.
+Production uses UGC_READ_WRITE_TOKEN for Blob. For OpenRouter, set UGC_AI_PROVIDER=openrouter and UGC_OPENROUTER_API_KEY as a secret, then redeploy. The model is fixed to poolside/laguna-s-2.1:free with zero-priced routing. Verify conversation and a complete product render before considering the switch complete.
 

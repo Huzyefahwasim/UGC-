@@ -209,7 +209,7 @@ void test('OpenRouter uses the exact free model and its own credentials without 
     async (url, init) => {
       assert.equal(url, 'https://openrouter.ai/api/v1/chat/completions');
       const body = JSON.parse(init!.body as string);
-      assert.equal(body.model, 'nvidia/nemotron-3-ultra-550b-a55b:free');
+      assert.equal(body.model, 'poolside/laguna-s-2.1:free');
       assert.equal(body.response_format, undefined);
       assert.deepEqual(body.reasoning, { enabled: false, exclude: true });
       assert.deepEqual(body.provider, {

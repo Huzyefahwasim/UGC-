@@ -187,3 +187,7 @@ Live recovery verification: Vercel marked commit ded17ff successfully deployed. 
 ## Public creation — 2026-09-09
 
 Removed the studio access field, outgoing access headers and server-side code checks. Production no longer requires a studio code even if obsolete environment settings remain. Signed generation/upload tickets, origin validation and chat rate limits remain. All 131 current tests pass; obsolete access-gate tests were removed and quota coverage now checks public production access.
+
+## Laguna model switch — 2026-09-09
+
+Selected poolside/laguna-s-2.1:free using the existing OpenRouter credentials. Zero-price routing and disabled paid fallback remain. Updated model-contract test, README, environment example and Vercel guide. Direct preflight returned HTTP 429; a diagnostic response confirmed the model is temporarily rate-limited upstream. No successful Laguna completion is claimed. Historical Nemotron tests above describe previous releases.
