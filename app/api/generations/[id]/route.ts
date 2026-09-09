@@ -1,5 +1,5 @@
 import { readGeneration, verifyGenerationTicket } from '@/lib/generation-jobs';
-import { getVideoStatus } from '@/lib/ltx';
+import { getVideoStatus } from '@/lib/generation-provider';
 import { createRenderTicket } from '@/lib/tickets';
 import { RequestError } from '@/lib/server';
 

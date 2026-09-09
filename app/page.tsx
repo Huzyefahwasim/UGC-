@@ -17,6 +17,7 @@ import {
   Clapperboard,
   MonitorPlay,
   WandSparkles,
+  ImagePlus,
 } from 'lucide-react';
 import { StudioWelcome } from './studio-welcome';
 import type { VideoPlan } from '@/lib/types';
@@ -24,6 +25,8 @@ import { renderVideo } from '@/lib/render';
 import { loadFootage } from '@/lib/load-footage';
 import { chooseReaction, reactionById } from '@/lib/reactions';
 import type { GenerationQuota } from '@/lib/generation-quota';
+import { WAN_DEMO, referenceUrl } from '@/lib/wan-config';
+import { preparePhoto } from '@/lib/reference-photo';
 
 function planReaction(plan: VideoPlan) {
   return reactionById(
@@ -54,7 +57,7 @@ type Message = {
     poster?: string;
     local?: boolean;
     format?: 'mp4' | 'webm';
-    provider?: 'higgsfield' | 'ltx';
+    provider?: 'higgsfield' | 'ltx' | 'wan';
   };
   error?: boolean;
   retryPrompt?: string;
@@ -62,6 +65,10 @@ type Message = {
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
+  const [referencePhoto, setReferencePhoto] = useState('');
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+  const photoInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [pendingJob, setPendingJob] = useState<GenerationJob | null>(null);
@@ -83,6 +90,7 @@ export default function Home() {
   const audio = useRef<AudioContext | null>(null);
   const pendingId = pendingJob?.id;
   const pendingTicket = pendingJob?.ticket;
+  const quotaEngine = pendingJob?.plan.engine || (pendingJob ? 'ltx' : 'wan');
   const quotaBlocked = quota.known && !quota.available;
   const quotaReset =
     quota.known && quota.resetAt
@@ -97,11 +105,14 @@ export default function Home() {
   async function refreshQuota() {
     setQuotaLoading(true);
     try {
-      const response = await fetch('/api/generation-quota', {
-        headers: { 'X-Studio-Access': accessCode },
-        signal: AbortSignal.timeout(10000),
-        cache: 'no-store',
-      });
+      const response = await fetch(
+        `/api/generation-quota?engine=${quotaEngine}`,
+        {
+          headers: { 'X-Studio-Access': accessCode },
+          signal: AbortSignal.timeout(10000),
+          cache: 'no-store',
+        },
+      );
       setQuota(response.ok ? await response.json() : { known: false });
     } catch {
       setQuota({ known: false });
@@ -129,7 +140,7 @@ export default function Home() {
           );
       })
       .catch(() => {});
-    void fetch('/api/generation-quota', {
+    void fetch(`/api/generation-quota?engine=${quotaEngine}`, {
       headers: { 'X-Studio-Access': accessCode },
       signal: control.signal,
       cache: 'no-store',
@@ -139,7 +150,21 @@ export default function Home() {
       })
       .catch(() => {});
     return () => control.abort();
-  }, [pendingId, pendingTicket, accessCode]);
+  }, [pendingId, pendingTicket, accessCode, quotaEngine]);
+  async function attachPhoto(file?: File) {
+    if (!file || busyRef.current || pendingJob) return;
+    setPhotoBusy(true);
+    setPhotoError('');
+    try {
+      setReferencePhoto(await preparePhoto(file));
+    } catch (error) {
+      setPhotoError(
+        error instanceof Error ? error.message : 'Could not read this photo.',
+      );
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
   function enableAudio() {
     if (typeof AudioContext === 'undefined') return;
     if (!audio.current || audio.current.state === 'closed')
@@ -190,11 +215,20 @@ export default function Home() {
             ...job.plan,
             credits: [
               {
-                label: 'AI footage · Lightricks LTX-Video',
-                url: 'https://huggingface.co/Lightricks/LTX-Video',
+                label:
+                  job.plan.engine === 'wan'
+                    ? 'AI footage · Wan 2.2'
+                    : 'AI footage · Lightricks LTX-Video',
+                url:
+                  job.plan.engine === 'wan'
+                    ? 'https://huggingface.co/Wan-AI/Wan2.2-I2V-A14B'
+                    : 'https://huggingface.co/Lightricks/LTX-Video',
               },
               ...job.plan.credits.filter(
-                (credit) => !credit.label.startsWith('Photography'),
+                (credit) =>
+                  (job.plan.engine === 'wan' &&
+                    job.plan.reference?.source === 'stock') ||
+                  !credit.label.startsWith('Photography'),
               ),
             ],
           }
@@ -211,7 +245,14 @@ export default function Home() {
             poster: result.poster,
             local,
             format: result.blob.type.includes('mp4') ? 'mp4' : 'webm',
-            ...(footageUrl ? { provider: 'ltx' as const } : {}),
+            ...(footageUrl
+              ? {
+                  provider:
+                    job.plan.engine === 'wan'
+                      ? ('wan' as const)
+                      : ('ltx' as const),
+                }
+              : {}),
           },
         },
       ]);
@@ -283,6 +324,12 @@ export default function Home() {
       )
         setPendingJob(saved.pendingJob);
       if (typeof saved.draft === 'string') setDraft(saved.draft.slice(0, 2400));
+      if (
+        typeof saved.referencePhoto === 'string' &&
+        saved.referencePhoto.startsWith('data:image/jpeg;base64,') &&
+        saved.referencePhoto.length < 1_100_000
+      )
+        setReferencePhoto(saved.referencePhoto);
     } catch {}
     setHydrated(true);
     fetch('/api/health')
@@ -304,6 +351,7 @@ export default function Home() {
         'cut-chat-v1',
         JSON.stringify({
           draft,
+          referencePhoto,
           pendingJob,
           messages: messages.map((m) => ({
             ...m,
@@ -321,7 +369,7 @@ export default function Home() {
         }),
       );
     } catch {}
-  }, [messages, draft, hydrated, pendingJob]);
+  }, [messages, draft, hydrated, pendingJob, referencePhoto]);
   useEffect(() => {
     if (!input.current) return;
     input.current.style.height = 'auto';
@@ -603,7 +651,7 @@ export default function Home() {
   }
   async function send(value = draft) {
     const text = value.trim();
-    if (!text || busyRef.current || pendingJob) return;
+    if (!text || busyRef.current || pendingJob || photoBusy) return;
     enableAudio();
     busyRef.current = true;
     setDraft('');
@@ -634,10 +682,11 @@ export default function Home() {
             .filter((m) => !m.error)
             .map((m) => ({ role: m.role, content: m.text })),
           previousPlan: messages.findLast((m) => m.video)?.video?.plan,
+          ...(referencePhoto ? { referenceImage: referencePhoto } : {}),
         }),
         signal: AbortSignal.any([
           controller.signal,
-          AbortSignal.timeout(60000),
+          AbortSignal.timeout(85000),
         ]),
       });
       const result = await response.json();
@@ -660,6 +709,7 @@ export default function Home() {
           startedAt: Date.now(),
         };
         setPendingJob(job);
+        setReferencePhoto('');
         // Persist before submission so a reload or lost response cannot cause a second GPU job.
         try {
           sessionStorage.setItem(
@@ -703,6 +753,8 @@ export default function Home() {
   function newChat() {
     if (busyRef.current || pendingJob) return;
     setMessages([]);
+    setReferencePhoto('');
+    setPhotoError('');
     setDraft('');
     setActivePlan(null);
     setNotice('New chat started.');
@@ -853,7 +905,8 @@ export default function Home() {
                         )}
                       </video>
                       <span className="video-badge">
-                        {message.video.provider === 'ltx'
+                        {message.video.provider === 'ltx' ||
+                        message.video.provider === 'wan'
                           ? '6 SEC'
                           : message.video.provider === 'higgsfield'
                             ? 'VIDEO'
@@ -935,6 +988,17 @@ export default function Home() {
                       )}
                       <details>
                         <summary>Creative brief & credits</summary>
+                        {message.video.provider === 'wan' && (
+                          <p className="provider-note">
+                            AI-generated footage · Wan 2.2, animated from{' '}
+                            {message.video.plan.reference?.source === 'upload'
+                              ? 'your reference photo'
+                              : 'a stock reference scene'}
+                            . Cut adds captions, music and the reaction GIF.
+                            Five-second footage is gently slowed to a six-second
+                            edit.
+                          </p>
+                        )}
                         {message.video.provider === 'higgsfield' && (
                           <p className="provider-note">
                             AI-generated footage · Veo 3.1 Fast. Download to
@@ -948,11 +1012,12 @@ export default function Home() {
                           </p>
                         )}
                         <p>{message.video.plan.description}</p>
-                        {message.video.plan.shot && (
-                          <p>
-                            {Object.values(message.video.plan.shot).join(' ')}
-                          </p>
-                        )}
+                        {message.video.plan.shot &&
+                          message.video.provider !== 'wan' && (
+                            <p>
+                              {Object.values(message.video.plan.shot).join(' ')}
+                            </p>
+                          )}
                         <ol className="caption-list">
                           {message.video.plan.captions.map((caption, i) => (
                             <li key={i}>
@@ -1061,10 +1126,31 @@ export default function Home() {
                         Edit & finish
                       </span>
                     </div>
-                    {activePlan.shot?.action && (
-                      <p className="generation-direction">
-                        {activePlan.shot.action}
-                      </p>
+                    {activePlan.reference ? (
+                      <div className="reference-brief">
+                        {/* eslint-disable-next-line nextjs/no-img-element -- Temporary reference hosted by the fixed generation provider. */}
+                        <img
+                          src={referenceUrl(activePlan.reference)}
+                          alt="Reference scene for this cut"
+                          width={48}
+                          height={70}
+                        />
+                        <p>
+                          {activePlan.reference.source === 'upload'
+                            ? 'Animating your reference photo'
+                            : 'Animating a stock reference scene'}
+                          <small>
+                            Keeping the subject and setting, adding gentle
+                            motion.
+                          </small>
+                        </p>
+                      </div>
+                    ) : (
+                      activePlan.shot?.action && (
+                        <p className="generation-direction">
+                          {activePlan.shot.action}
+                        </p>
+                      )
                     )}
                     {jobPhase === 'finishing' && (
                       <span className="render-note">
@@ -1172,7 +1258,11 @@ export default function Home() {
                 </summary>
                 {pendingJob.failed && <p>{pendingJob.recoveryNote}</p>}
                 <a
-                  href="https://huggingface.co/spaces/Lightricks/ltx-video-distilled"
+                  href={
+                    pendingJob.plan.engine === 'wan'
+                      ? WAN_DEMO
+                      : 'https://huggingface.co/spaces/Lightricks/ltx-video-distilled'
+                  }
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -1221,6 +1311,48 @@ export default function Home() {
             }}
             className="composer"
           >
+            <input
+              ref={photoInput}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              tabIndex={-1}
+              aria-label="Choose reference photo"
+              disabled={busy || !!pendingJob || photoBusy}
+              onChange={(e) => {
+                void attachPhoto(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+            {referencePhoto && (
+              <div className="reference-attachment">
+                {/* eslint-disable-next-line nextjs/no-img-element -- Locally resized photo preview. */}
+                <img
+                  src={referencePhoto}
+                  alt="Your reference, cropped for video"
+                  width={42}
+                  height={62}
+                />
+                <span>
+                  Your reference photo
+                  <small>
+                    Used by a public Hugging Face demo. Choose a shareable
+                    photo.
+                  </small>
+                </span>
+                <button
+                  type="button"
+                  aria-label="Remove reference photo"
+                  disabled={busy || photoBusy}
+                  onClick={() => setReferencePhoto('')}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+            {photoError && (
+              <output className="photo-error">{photoError}</output>
+            )}
             {!messages.length && (
               <div className="composer-label">
                 <Link2 size={14} /> YOUR PRODUCT, YOUR DIRECTION
@@ -1254,7 +1386,20 @@ export default function Home() {
               }}
             />
             <div className="composer-bottom">
-              <span>
+              <button
+                type="button"
+                className="attach-photo"
+                onClick={() => photoInput.current?.click()}
+                disabled={busy || !!pendingJob || photoBusy}
+              >
+                <ImagePlus size={16} />{' '}
+                {photoBusy
+                  ? 'Preparing photo…'
+                  : referencePhoto
+                    ? 'Change photo'
+                    : 'Add reference photo'}
+              </button>
+              <span className="composer-status">
                 <span className="status-dot" />{' '}
                 {busy
                   ? activePlan
@@ -1275,7 +1420,7 @@ export default function Home() {
                 <button
                   type="submit"
                   className="send"
-                  disabled={!draft.trim() || !!pendingJob}
+                  disabled={!draft.trim() || !!pendingJob || photoBusy}
                   aria-label="Send message"
                 >
                   <span>{messages.length ? 'Send' : 'Create a cut'}</span>

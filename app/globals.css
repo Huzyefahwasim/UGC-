@@ -1633,6 +1633,65 @@ h1 span {
   border-color: #4a5137;
   background: #20241a;
 }
+.composer-bottom .attach-photo {
+  white-space: nowrap;
+  background: transparent;
+  border: 1px solid #424b32;
+  color: #c7d7ac;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.attach-photo:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.reference-attachment,
+.reference-brief {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.reference-attachment img,
+.reference-brief img {
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.reference-attachment span,
+.reference-brief p {
+  font-size: 12px;
+  color: #e0e8d4;
+}
+.reference-attachment small,
+.reference-brief small {
+  display: block;
+  font-size: 10px;
+  color: #aebd98;
+  margin-top: 4px;
+}
+.reference-attachment button {
+  margin-left: auto;
+  background: transparent;
+  color: #c7d7ac;
+  border: 0;
+  padding: 8px;
+}
+.photo-error {
+  display: block;
+  margin-bottom: 10px;
+  color: #f1c49b;
+  font-size: 12px;
+}
+@media (max-width: 650px) {
+  .composer-bottom .composer-status {
+    display: none;
+  }
+}
 .recovery-eyebrow {
   display: block;
   margin-bottom: 7px;

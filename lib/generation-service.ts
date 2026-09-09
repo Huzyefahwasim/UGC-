@@ -3,7 +3,8 @@ import {
   readGeneration,
   recordGeneration,
 } from './generation-jobs.ts';
-import { submitVideo } from './ltx.ts';
+import { submitVideo } from './generation-provider.ts';
+import { WAN_REQUIRED_SECONDS } from './wan-config.ts';
 import { requireGenerationQuota } from './generation-quota.ts';
 import { RequestError } from './server.ts';
 import type { VideoPlan } from './types.ts';
@@ -22,13 +23,15 @@ const defaults: Dependencies = {
   claim: claimGeneration,
   record: recordGeneration,
   submit: async (plan, direction) => {
-    await requireGenerationQuota();
+    await requireGenerationQuota(
+      plan.engine === 'wan' ? WAN_REQUIRED_SECONDS : 120,
+    );
     return submitVideo(plan, direction);
   },
 };
 
 const UNCONFIRMED =
-  'We could not finish this LTX request. No automatic retry was submitted. Try later or create a cut with free assets.';
+  'We could not finish this video request. No automatic retry was submitted. Try later or create a cut with free assets.';
 
 async function persist(
   id: string,
@@ -95,7 +98,7 @@ export async function startGeneration(
     await persist(id, { providerId: submitted.id }, dependencies.record);
   } catch {
     throw new RequestError(
-      'LTX finished the footage, but the studio could not save it. Storage needs attention before another generation. No automatic retry was submitted.',
+      'The video service finished the footage, but the studio could not save it. Storage needs attention before another generation. No automatic retry was submitted.',
       503,
     );
   }

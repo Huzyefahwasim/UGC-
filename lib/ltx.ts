@@ -71,14 +71,21 @@ export function parseComplete(value: unknown): string {
   return mediaUrl(url);
 }
 
-export async function readVideoEvents(response: Response): Promise<string> {
+export async function readVideoEvents(
+  response: Response,
+  parseResult = parseComplete,
+  provider = 'LTX',
+): Promise<string> {
   if (!response.headers.get('content-type')?.includes('text/event-stream')) {
     await response.body?.cancel();
-    throw new RequestError('LTX did not return a generation stream.', 502);
+    throw new RequestError(
+      `${provider} did not return a generation stream.`,
+      502,
+    );
   }
   const reader = response.body?.getReader();
   if (!reader)
-    throw new RequestError('The LTX generation stream was empty.', 502);
+    throw new RequestError(`The ${provider} generation stream was empty.`, 502);
   const decoder = new TextDecoder();
   let buffer = '',
     size = 0;
@@ -89,7 +96,7 @@ export async function readVideoEvents(response: Response): Promise<string> {
       size += value.length;
       if (size > MAX_RESPONSE)
         throw new RequestError(
-          'The LTX response exceeded its size limit.',
+          `The ${provider} response exceeded its size limit.`,
           502,
         );
       buffer += decoder.decode(value, { stream: true });
@@ -114,16 +121,19 @@ export async function readVideoEvents(response: Response): Promise<string> {
         }
         if (kind === 'complete') {
           try {
-            return parseComplete(JSON.parse(data));
+            return parseResult(JSON.parse(data));
           } catch (error) {
             if (error instanceof RequestError) throw error;
-            throw new RequestError('LTX returned an unreadable result.', 502);
+            throw new RequestError(
+              `${provider} returned an unreadable result.`,
+              502,
+            );
           }
         }
       }
     }
     throw new RequestError(
-      'LTX disconnected before returning a video. No new generation was submitted automatically.',
+      `${provider} disconnected before returning a video. No new generation was submitted automatically.`,
       502,
     );
   } finally {

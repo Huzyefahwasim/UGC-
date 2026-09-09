@@ -19,6 +19,7 @@ import {
 import type { VideoPlan } from './types.ts';
 import { validShot } from './video-direction.ts';
 import { validReaction } from './reactions.ts';
+import { validWanReference } from './wan-config.ts';
 
 const LIFETIME = 24 * 60 * 60 * 1000;
 const MAX_TICKET_LENGTH = 7800;
@@ -67,6 +68,11 @@ function validPlan(value: unknown): value is VideoPlan {
     'accent',
   ];
   return (
+    (plan.engine === undefined ||
+      plan.engine === 'ltx' ||
+      plan.engine === 'wan') &&
+    (plan.reference === undefined || validWanReference(plan.reference)) &&
+    (plan.engine !== 'wan' || validWanReference(plan.reference)) &&
     (plan.shot === undefined || validShot(plan.shot)) &&
     (plan.reaction === undefined || validReaction(plan.reaction)) &&
     strings.every(

@@ -11,7 +11,7 @@ export type GenerationQuota =
       known: true;
       available: boolean;
       remainingSeconds: number;
-      requiredSeconds: 120;
+      requiredSeconds: number;
       resetAt: string | null;
       reason: 'gpu' | 'runs' | null;
     };
@@ -33,7 +33,7 @@ function isReset(value: unknown): value is string | null {
   );
 }
 
-function snapshot(value: unknown): GenerationQuota {
+function snapshot(value: unknown, requiredSeconds: number): GenerationQuota {
   if (
     !isRecord(value) ||
     !isNumber(value.base) ||
@@ -56,7 +56,7 @@ function snapshot(value: unknown): GenerationQuota {
   )
     return { known: false };
 
-  const gpuBlocked = value.current < REQUIRED_SECONDS;
+  const gpuBlocked = value.current < requiredSeconds;
   const runsBlocked = isRecord(runs) && (runs.remaining as number) <= 0;
   const blockedResets = [
     ...(gpuBlocked ? [value.resetsAt] : []),
@@ -75,13 +75,15 @@ function snapshot(value: unknown): GenerationQuota {
     known: true,
     available: !gpuBlocked && !runsBlocked,
     remainingSeconds: Math.max(0, value.current),
-    requiredSeconds: REQUIRED_SECONDS,
+    requiredSeconds,
     resetAt,
     reason: gpuBlocked ? 'gpu' : runsBlocked ? 'runs' : null,
   };
 }
 
-export async function getGenerationQuota(): Promise<GenerationQuota> {
+export async function getGenerationQuota(
+  requiredSeconds = REQUIRED_SECONDS,
+): Promise<GenerationQuota> {
   const token = process.env.HUGGINGFACE_TOKEN?.trim();
   if (!token || !/^hf_[A-Za-z0-9]+$/.test(token)) return { known: false };
   try {
@@ -97,7 +99,10 @@ export async function getGenerationQuota(): Promise<GenerationQuota> {
       return { known: false };
     }
     const bytes = await readLimited(response, 16 * 1024);
-    return snapshot(JSON.parse(new TextDecoder().decode(bytes)));
+    return snapshot(
+      JSON.parse(new TextDecoder().decode(bytes)),
+      requiredSeconds,
+    );
   } catch {
     // Quota inspection is optional. A failed inspection must not invent an
     // exhausted allowance or expose provider errors, identity, or credentials.
@@ -105,8 +110,10 @@ export async function getGenerationQuota(): Promise<GenerationQuota> {
   }
 }
 
-export async function requireGenerationQuota(): Promise<void> {
-  const quota = await getGenerationQuota();
+export async function requireGenerationQuota(
+  requiredSeconds = REQUIRED_SECONDS,
+): Promise<void> {
+  const quota = await getGenerationQuota(requiredSeconds);
   if (!quota.known || quota.available) return;
   const limit =
     quota.reason === 'runs'

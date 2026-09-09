@@ -1,26 +1,25 @@
-# Directing LTX footage
+# Directing Wan 2.2 footage
 
-Cut uses **LTX-Video 0.9.8 13B distilled**, not LTX-2 or a talking-avatar model. It generates silent footage; the editor adds captions, music and a GIF.
+Cut uses Wan 2.2 I2V A14B through a community Hugging Face Space with Lightx2v acceleration. It generates silent footage from a reference; the browser adds animated captions, licensed music and a GIF.
 
-## Product context
+## Reference first
 
-The chat reads bounded public metadata and page text. A connected chat model receives product facts, recent conversation, previous captions and a structured shot instruction. It returns action, subject, setting, camera and lighting fields alongside factual marketing captions.
+An attached JPG, PNG or WebP is center-cropped to 480 × 704. The composer previews this crop. The server verifies raster content, bounds decoded pixels, strips metadata and re-encodes JPEG before uploading to the fixed Space. The returned reference path is validated and included in the signed brief. Revisions keep it unless another photo is attached. References are temporary; if one expires, edit the brief and attach it again.
 
-Without a chat key, a deterministic director selects concrete scenes such as coffee pouring, plant watering, a skincare still life, a simple stretch or a creator at a desk. It recognizes close-up, overhead, shallow orbit, tripod, handheld, golden hour, bright morning and moody light. Arbitrary directions require the chat model.
+Without an attachment, a licensed category stock scene is used and explicitly labeled. It illustrates the product category rather than reproducing a real product. References and prompts go to the community Space; its files and prompt history may be public. Use shareable material.
 
-The compiler produces one action-first paragraph capped at 195 words. It describes one achievable action, one environment, subject appearance, camera path/end framing and consistent light. Raw user or webpage instructions are not blindly appended. Screens face away to avoid fabricated interfaces. Objects are illustrative rather than exact branded replicas; this version does not upload reference images.
+## Context and motion
 
-## Composition
+Gemini receives bounded product-page facts, conversation and previous captions. It writes product-specific hooks, benefits and CTAs, and selects a suitable animated reaction. It does not receive the reference image for visual analysis.
 
-The shot leaves the top quarter and bottom fifth quiet for overlays. LTX is not asked to draw captions, logos, generate speech or cut between scenes. The negative prompt discourages flickering, warped anatomy, floating objects, lettering and jump cuts.
+The motion compiler prioritizes the reference: preserve its subjects, product shape, composition, colors and setting. Product facts inform mood, not permission to add an unseen person or prop. Use a small stable camera movement and subtle motion. Calm products get restrained movement; an explicit static-camera request is honored. The ending settles for the CTA. No invented readable screens, hands, speech or branding.
 
-Generation uses 576 × 1024, six seconds, 30 FPS, random seed, distilled CFG 1 and multi-scale texture enhancement. Gradio rounds frame counts, so raw duration varies slightly. Cut maps the footage to a six-second 720 × 1280 export, adds three animated caption beats, a smaller corner reaction GIF and licensed music. The export is upscaled; the source is not native 720p.
+The earlier LTX shot compiler remains for previously signed LTX jobs. Wan uses image-preserving motion instructions rather than imposing a text-to-video scene on the reference.
 
-The chosen settings and prompt improve direction but cannot guarantee exact appearance or flawless motion.
+## Composition and limits
 
-## References
+The recipe is five seconds at 16fps, four distilled steps and guidance 1/1. The Space rounds frame counts. Its 480 × 704 output is center-cropped and upscaled for a six-second 720 × 1280 edit; playback is gently slowed. This is not native 720p generation. Three caption beats, music and a contextual GIF are composed locally. The model can still distort details, and the free community demo has no uptime guarantee.
 
-- [Lightricks prompt guide](https://github.com/Lightricks/LTX-Video#-prompt-engineering): literal chronological actions in one paragraph under 200 words.
-- [Official Space code](https://huggingface.co/spaces/Lightricks/ltx-video-distilled/blob/main/app.py): the exact model, input order and texture enhancement setting.
-- [Higgsfield camera guide](https://higgsfield.ai/blog/ai-video-camera-control): intentional camera movement and consistent light. LTX receives prose suggestions; it does not expose Higgsfield's Cinema Studio controls.
-- [HF API guide](https://huggingface.co/docs/hub/en/spaces-api-endpoints): named REST calls and account quota.
+- [Wan model](https://huggingface.co/Wan-AI/Wan2.2-I2V-A14B)
+- [Selected Space source](https://huggingface.co/spaces/dream2589632147/Dream-wan2-2-faster-Pro/blob/main/app.py), reviewed revision a8f5e6db975eb1c427eff6f41db8f38dc20be23e.
+- [HF API guide](https://huggingface.co/docs/hub/en/spaces-api-endpoints)

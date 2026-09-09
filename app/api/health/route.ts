@@ -17,7 +17,7 @@ export async function GET() {
       aiProvider: runtime().provider,
       aiModel: runtime().model,
       generationConfigured: generationReady,
-      generationProvider: 'ltx',
+      generationProvider: 'wan',
       generationAuthenticated: authenticated(),
       generationAccessRequired: generationAccessRequired(),
       generationAccessConfigured: accessReady,

@@ -2,6 +2,15 @@
 
 > Deployment status: the user reported deleting the former ChatGPT Site. URLs in the earlier evidence below are historical and are not the current deliverable. The app is being prepared for user-managed Vercel hosting; no Vercel production deployment has been performed.
 
+## Wan 2.2 reference-image engine — 2026-09-09
+
+- User selected Wan 2.2 with reference images. The inspected 5B demo was in RUNTIME_ERROR; the selected running community Space is dream2589632147/Dream-wan2-2-faster-Pro, revision a8f5e6db975eb1c427eff6f41db8f38dc20be23e. Its public API and source confirm Wan2.2-I2V-A14B, Lightx2v acceleration, a nine-argument image-to-video endpoint and direct FileData output. This is a community demo, not an official Wan API.
+- Added composer image attachment with cropped preview and public-demo disclosure. Raster validation, pixel bounds, re-encoding and metadata stripping precede upload to the fixed Space. The signed brief retains the validated reference; stock references are explicitly labeled. Existing signed LTX jobs and completed results keep their original engine.
+- Quota checks are recipe-specific: Wan 480 × 704 / five seconds / four steps currently reserves 45 seconds; legacy LTX retains 120 seconds. Missing/unknown quota still cannot manufacture an exhaustion error. No paid API or automatic provider fallback was introduced.
+- Real browser test: attached the licensed local food reference through the file chooser and requested a CalAI video using https://calai.app. Gemini created the brief, the reference uploaded, Wan generated footage, and the normal browser compositor saved /api/videos/5549cd83-de1c-4c48-b518-aa14522d8c97. Generation job: 3893f402-e57f-40ee-8aa1-b89ea7a96b13. No fixture or reused footage was used. Quota decreased from 118.182584 to 71.404714 seconds.
+- FFprobe: H.264/AAC, 720 × 1280, 5.975833 seconds, 2,361,602 bytes. Inspected three frames showing the preserved meal reference, three caption beats and animated target GIF. Attribution identifies Wan and the uploaded reference. Reload preserved the video; mobile 390 × 844 review confirmed a fitting composer and no horizontal overflow. Artifacts: .artifacts/wan-calai.mp4 and wan-calai-contact.png.
+- 129 tests passed, including reference image normalization/rejection, fixed destinations, correct request shape, no automatic retry, media validation, legacy playback and 45/120-second quota boundaries. Lint, TypeScript and production build passed. The model runs remotely, not on the user's laptop or Vercel GPU. Reference links are temporary and the community demo has no uptime guarantee.
+
 ## Quota diagnosis and failed-job recovery — 2026-09-08
 
 - Investigated the reported Cherry Tree Solutions failure. The token is configured. The official authenticated read-only quota endpoint returned 118.182584 GPU seconds; the Space reserves 120 seconds for clips up to seven seconds. Reported reset: September 9, about 21:16 Pakistan time. This establishes insufficient reservation allowance, rather than guessing from Gradio's empty error event.

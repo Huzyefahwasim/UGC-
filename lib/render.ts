@@ -496,7 +496,7 @@ export async function renderVideo(
       ctx.fillStyle = 'rgba(247,245,233,.65)';
       ctx.font = '8.5px Arial, sans-serif';
       ctx.fillText(
-        `${footage ? 'AI footage · LTX-Video | ' : ''}Emoji: Google Noto · CC BY 4.0 · composited`,
+        `${footage ? `AI footage · ${plan.engine === 'wan' ? 'Wan 2.2' : 'LTX-Video'} | ` : ''}Emoji: Google Noto · CC BY 4.0 · composited`,
         W / 2,
         934,
       );
