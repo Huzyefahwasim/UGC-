@@ -61,9 +61,9 @@ Conversation and unfinished briefs are stored in the current tab's session. The 
 
 ## Deployment and handoff
 
-There is **no current verified production URL**. The old ChatGPT Site was deleted. Follow [VERCEL.md](VERCEL.md) for user-managed deployment and signed-out verification.
+Live app: **[ugc-puce.vercel.app](https://ugc-puce.vercel.app)**, deployed in the owner’s Vercel Hobby workspace. Gemini and public Blob storage are configured. Reviewers need the separately supplied studio access code. See [VERCEL.md](VERCEL.md).
 
-[WALKTHROUGH.md](WALKTHROUGH.md) is a script, not a completed recording. The live deployment and camera-on walkthrough under five minutes remain outstanding.
+[WALKTHROUGH.md](WALKTHROUGH.md) is a script, not a completed recording. The camera-on walkthrough under five minutes remains outstanding.
 
 ## Validation
 

@@ -1,6 +1,6 @@
 # Deploy Cut on Vercel
 
-Normal creation assembles licensed assets in the browser. It requires no GPU, Hugging Face token or video-generation service. No production deployment has been verified.
+Normal creation assembles licensed assets in the browser. It requires no GPU, Hugging Face token or video-generation service. The owner’s live deployment is https://ugc-puce.vercel.app. Its public health endpoint reports Gemini, signing, studio access and Blob ready.
 
 ## Setup
 

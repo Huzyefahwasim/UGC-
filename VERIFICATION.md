@@ -1,6 +1,16 @@
 # Verification evidence
 
-> Deployment status: the user reported deleting the former ChatGPT Site. URLs in the earlier evidence below are historical and are not the current deliverable. The app is being prepared for user-managed Vercel hosting; no Vercel production deployment has been performed.
+## Vercel production verified — 2026-09-09
+
+- Live app: https://ugc-puce.vercel.app, owner’s Hobby project ugc. Public Blob store ugc-videos connected using UGC_READ_WRITE_TOKEN; production settings use UGC_ prefixes. No purchase or paid upgrade performed.
+- Anonymous health request returned HTTP 200 with Gemini, signing, access and Blob configured.
+- Real browser greeting returned conversation only. Submitted https://linear.app without image input; the app created and saved the video in chat.
+- Public video: https://ugc-puce.vercel.app/api/videos/636dfee5-1341-4931-8dfe-6698b27c9672
+- Independent unauthenticated FFprobe: 8.019300 seconds, H.264/AAC, 720 × 1280, 3,227,671 bytes.
+- Production configuration change passed 131 tests, lint, TypeScript and build. Camera-on recording remains outstanding.
+
+
+> Historical deployment note (superseded by the production verification above): the user reported deleting the former ChatGPT Site. URLs in the earlier evidence below are historical and are not the current deliverable. The app is being prepared for user-managed Vercel hosting; no Vercel production deployment has been performed.
 
 ## Current asset assembly — 2026-09-09
 

@@ -19,4 +19,4 @@ Keep the app visible during composition. Do not record secrets. If Gemini is dis
 - **Live app:** verified Vercel production URL.
 - **Public repository:** https://github.com/Huzyefahwasim/UGC-
 
-Live deployment and camera-on recording remain outstanding.
+Live deployment is verified at https://ugc-puce.vercel.app. The camera-on recording remains outstanding.
