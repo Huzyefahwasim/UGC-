@@ -32,3 +32,5 @@ Exports are public to anyone with their URL, authorized by signed permits and ca
 Older Wan/LTX compatibility routes retain their own tokens, quotas and longer timeouts. Those are not part of new asset-assembled cuts.
 
 Production connection: the ugc project uses UGC_READ_WRITE_TOKEN for its dedicated public Blob store. UGC_AI_PROVIDER, UGC_GEMINI_API_KEY, UGC_GEMINI_MODEL, UGC_RENDER_SIGNING_SECRET and UGC_STUDIO_ACCESS_CODE take precedence over their unprefixed equivalents; local configuration remains compatible.
+
+To switch to the prepared OpenRouter integration, set UGC_AI_PROVIDER=openrouter and UGC_OPENROUTER_API_KEY as a secret, then redeploy. The model is fixed to nvidia/nemotron-3-ultra-550b-a55b:free with zero-priced routing. Verify conversation and a complete product render before considering the switch complete.

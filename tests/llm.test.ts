@@ -182,3 +182,50 @@ void test('Incomplete, blocked and malformed briefs never trigger a render', asy
     );
   }
 });
+
+void test('OpenRouter uses the exact free model and its own credentials without paid routing', async () => {
+  const settings = runtime({
+    AI_PROVIDER: 'openrouter',
+    OPENROUTER_API_KEY: 'router-test',
+    GEMINI_API_KEY: 'wrong',
+    AI_BASE_URL: 'https://wrong.example',
+  });
+  assert.equal(settings.endpoint, 'https://openrouter.ai/api/v1');
+  assert.equal(settings.apiKey, 'router-test');
+  assert.equal(
+    runtime({ AI_PROVIDER: 'openrouter', GEMINI_API_KEY: 'wrong' }).apiKey,
+    undefined,
+  );
+  assert.equal(
+    runtime({
+      UGC_AI_PROVIDER: 'openrouter',
+      UGC_OPENROUTER_API_KEY: 'prefixed',
+    }).apiKey,
+    'prefixed',
+  );
+  const result = await creativeCompletion(
+    settings,
+    [{ role: 'user', content: 'hi' }],
+    async (url, init) => {
+      assert.equal(url, 'https://openrouter.ai/api/v1/chat/completions');
+      const body = JSON.parse(init!.body as string);
+      assert.equal(body.model, 'nvidia/nemotron-3-ultra-550b-a55b:free');
+      assert.equal(body.response_format, undefined);
+      assert.deepEqual(body.provider, {
+        allow_fallbacks: false,
+        max_price: { prompt: 0, completion: 0, request: 0 },
+      });
+      return Response.json({
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: {
+              content: JSON.stringify({ kind: 'chat', reply: 'Hello' }),
+            },
+          },
+        ],
+      });
+    },
+  );
+  assert.deepEqual(result, { kind: 'chat', reply: 'Hello' });
+});

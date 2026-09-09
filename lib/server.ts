@@ -4,8 +4,15 @@ import { createHash } from 'node:crypto';
 export function runtime(env: Record<string, string | undefined> = process.env) {
   // Gemini is the default. Legacy keys never silently select a paid provider.
   const provider = setting('AI_PROVIDER', env) || 'gemini';
-  if (!['gemini', 'openai'].includes(provider))
-    throw new Error('AI_PROVIDER must be gemini or openai.');
+  if (!['gemini', 'openai', 'openrouter'].includes(provider))
+    throw new Error('AI_PROVIDER must be gemini, openrouter or openai.');
+  if (provider === 'openrouter')
+    return {
+      provider,
+      apiKey: setting('OPENROUTER_API_KEY', env),
+      endpoint: 'https://openrouter.ai/api/v1',
+      model: 'nvidia/nemotron-3-ultra-550b-a55b:free',
+    };
   return {
     provider,
     apiKey: (provider === 'gemini'

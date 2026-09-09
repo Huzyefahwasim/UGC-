@@ -10,7 +10,11 @@ export async function creativeCompletion(
   if (!settings.apiKey)
     throw new RequestError('Connect a chat API key first.', 503);
   const label =
-    settings.provider === 'gemini' ? 'Gemini' : 'The creative assistant';
+    settings.provider === 'gemini'
+      ? 'Gemini'
+      : settings.provider === 'openrouter'
+        ? 'OpenRouter'
+        : 'The creative assistant';
   const gemini = settings.provider === 'gemini';
   const url = gemini
     ? `${settings.endpoint}/models/${encodeURIComponent(settings.model)}:generateContent`
@@ -41,7 +45,15 @@ export async function creativeCompletion(
         model: settings.model,
         temperature: 0.75,
         max_tokens: 1100,
-        response_format: { type: 'json_object' },
+        ...(settings.provider === 'openrouter'
+          ? {
+              reasoning: { effort: 'none', exclude: true },
+              provider: {
+                allow_fallbacks: false,
+                max_price: { prompt: 0, completion: 0, request: 0 },
+              },
+            }
+          : { response_format: { type: 'json_object' } }),
         messages,
       };
   let response: Response;
@@ -56,7 +68,9 @@ export async function creativeCompletion(
           : { Authorization: `Bearer ${settings.apiKey}` }),
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(35000),
+      signal: AbortSignal.timeout(
+        settings.provider === 'openrouter' ? 65000 : 35000,
+      ),
     });
   } catch {
     throw new RequestError(
@@ -104,7 +118,11 @@ export async function creativeCompletion(
           .map((part: { text: string }) => part.text)
           .join('')
       : choice.message?.content;
-    const result = JSON.parse(content || '');
+    const json =
+      settings.provider === 'openrouter' && typeof content === 'string'
+        ? content.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/, '$1')
+        : content;
+    const result = JSON.parse(json || '');
     if (
       !result ||
       typeof result !== 'object' ||

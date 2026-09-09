@@ -81,3 +81,7 @@ Latest functional checkpoint: **131 tests passed**, plus a real link-only Cherry
 [CAPTURE-TEST.md](CAPTURE-TEST.md) records capture checks completed before application code. [`.agent-logs/`](.agent-logs/) contains prompts and final responses committed at reviewed checkpoints. Historical logs preserve earlier implementations as recorded; tools, reasoning and internal agent sessions are excluded.
 
 Production connection: the ugc project uses UGC_READ_WRITE_TOKEN for its dedicated public Blob store. UGC_AI_PROVIDER, UGC_GEMINI_API_KEY, UGC_GEMINI_MODEL, UGC_RENDER_SIGNING_SECRET and UGC_STUDIO_ACCESS_CODE take precedence over their unprefixed equivalents; local configuration remains compatible.
+
+## OpenRouter Nemotron option
+
+Set AI_PROVIDER=openrouter and OPENROUTER_API_KEY to use nvidia/nemotron-3-ultra-550b-a55b:free. Production supports UGC_AI_PROVIDER and UGC_OPENROUTER_API_KEY. The integration fixes the OpenRouter endpoint and exact free model, disallows provider fallbacks and sets a zero-price ceiling. It does not send the unsupported response_format option; JSON is prompted and validated locally. Free endpoint availability and quotas still apply. NVIDIA logs submitted content under its free-endpoint terms; send only shareable product/chat text. A real key-backed test is still pending; production remains on Gemini until verified.
