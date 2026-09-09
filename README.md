@@ -34,7 +34,7 @@ nvidia/nemotron-3.5-lightning:free
 
 The model organizes product facts, copy and asset choices; it does not generate video footage. Requests use the exact model above with zero-price routing and no provider fallback. Free-endpoint quotas and availability still apply. NVIDIA logs submitted content under its endpoint terms, so use shareable product and chat text.
 
-**Provider status:** Nemotron 3.5 Lightning is selected. Direct verification produced a conversational reply and structured briefs using the application instructions. Free endpoints remain rate-limited. If the model fails or takes longer than 25 seconds, the built-in planner uses website facts; its templates can repeat captions. No Gemini or paid-model fallback is used.
+**Provider status:** Nemotron 3.5 Lightning is selected. Direct verification produced a conversational reply and structured briefs using the application instructions. Free endpoints remain rate-limited. If the model fails or takes longer than 55 seconds on OpenRouter, the built-in planner uses website facts; its templates can repeat captions. No Gemini or paid-model fallback is used.
 
 ## Run locally
 
@@ -93,6 +93,7 @@ Latest integration checkpoint: **131 tests passed**, with TypeScript, lint and p
 ## Agent capture
 
 [CAPTURE-TEST.md](CAPTURE-TEST.md) records capture checks completed before application code. [`.agent-logs/`](.agent-logs/) contains prompts and final responses committed at reviewed checkpoints. Historical logs preserve earlier implementations as recorded; tools, reasoning and internal agent sessions are excluded.
+
 
 
 

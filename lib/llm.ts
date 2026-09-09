@@ -70,7 +70,9 @@ export async function creativeCompletion(
         messages,
       };
   let response: Response;
-  const signal = AbortSignal.timeout(25000);
+  const signal = AbortSignal.timeout(
+    settings.provider === 'openrouter' ? 55000 : 25000,
+  );
   try {
     response = await send(url, {
       method: 'POST',

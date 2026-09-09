@@ -195,3 +195,5 @@ Selected poolside/laguna-s-2.1:free using the existing OpenRouter credentials. Z
 ## Nemotron 3.5 Lightning — 2026-09-09
 
 Selected nvidia/nemotron-3.5-lightning:free with the existing OpenRouter key and zero-price routing. Direct creativeCompletion verification succeeded: conversational advice in 6.37 seconds, Cherry Tree Solutions brief in 7.19 seconds and Bloom plant-care brief in 3.04 seconds. Briefs used the actual application system instructions and returned different captions and scene directions. These were parsed model responses, not deterministic fallback output. Free endpoint availability can still vary.
+
+Production Lightning verification returned a real conversational answer in 24.61 seconds. A product brief hit the previous 25-second limit and used templates. Raised the OpenRouter request budget to 55 seconds (within the chat route's 90-second limit) to accommodate the observed latency; other providers retain 25 seconds.
