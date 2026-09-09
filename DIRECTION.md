@@ -4,9 +4,9 @@ Cut uses Wan 2.2 I2V A14B through a community Hugging Face Space with Lightx2v a
 
 ## Reference first
 
-An attached JPG, PNG or WebP is center-cropped to 480 × 704. The composer previews this crop. The server verifies raster content, bounds decoded pixels, strips metadata and re-encodes JPEG before uploading to the fixed Space. The returned reference path is validated and included in the signed brief. Revisions keep it unless another photo is attached. References are temporary; if one expires, edit the brief and attach it again.
+Users supply a product link, not an image. Cut reads the page, builds a product brief and selects a licensed category stock scene internally. The server crops it to 480 × 704, strips metadata and uploads it to the fixed Space. The validated reference is included in the signed brief and reused for revisions.
 
-Without an attachment, a licensed category stock scene is used and explicitly labeled. It illustrates the product category rather than reproducing a real product. References and prompts go to the community Space; its files and prompt history may be public. Use shareable material.
+The stock scene illustrates the category, rather than reproducing the actual product. References and prompts go to the public community Space.
 
 ## Context and motion
 

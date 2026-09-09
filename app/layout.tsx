@@ -3,7 +3,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Cut — Your product. Their next obsession.',
   description:
-    'Turn a product link and reference photo into a short creator-style video with Wan 2.2. Shape the direction and get the result in chat.',
+    'Turn a product link into a short creator-style video with Wan 2.2. Shape the direction and get the result in chat.',
 };
 export default function RootLayout({
   children,

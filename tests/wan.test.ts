@@ -224,3 +224,41 @@ void test('Wan reservation is 45 seconds while legacy LTX still needs 120', asyn
     /not enough/,
   );
 });
+
+void test('link-only briefs automatically prepare a valid scene for every product category', async (t) => {
+  token(t);
+  let calls = 0;
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async (target: string, init: RequestInit) => {
+      calls++;
+      assert.equal(target, WAN_SPACE + '/gradio_api/upload');
+      const file = (init.body as FormData).get('files') as File;
+      const metadata = await sharp(
+        Buffer.from(await file.arrayBuffer()),
+      ).metadata();
+      assert.equal(metadata.width, 480);
+      assert.equal(metadata.height, 704);
+      return Response.json([reference.path]);
+    },
+  );
+  for (const category of [
+    'food',
+    'fitness',
+    'productivity',
+    'beauty',
+    'travel',
+    'general',
+  ] as const) {
+    const brief = makePlan(
+      'Example',
+      'https://example.com',
+      'A product to promote',
+      category,
+    );
+    const prepared = await prepareReference(brief);
+    assert.deepEqual(prepared, { path: reference.path, source: 'stock' });
+  }
+  assert.equal(calls, 6);
+});

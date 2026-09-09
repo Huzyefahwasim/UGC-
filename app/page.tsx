@@ -17,7 +17,6 @@ import {
   Clapperboard,
   MonitorPlay,
   WandSparkles,
-  ImagePlus,
 } from 'lucide-react';
 import { StudioWelcome } from './studio-welcome';
 import type { VideoPlan } from '@/lib/types';
@@ -26,7 +25,6 @@ import { loadFootage } from '@/lib/load-footage';
 import { chooseReaction, reactionById } from '@/lib/reactions';
 import type { GenerationQuota } from '@/lib/generation-quota';
 import { WAN_DEMO, referenceUrl } from '@/lib/wan-config';
-import { preparePhoto } from '@/lib/reference-photo';
 
 function planReaction(plan: VideoPlan) {
   return reactionById(
@@ -65,10 +63,6 @@ type Message = {
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
-  const [referencePhoto, setReferencePhoto] = useState('');
-  const [photoBusy, setPhotoBusy] = useState(false);
-  const [photoError, setPhotoError] = useState('');
-  const photoInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [pendingJob, setPendingJob] = useState<GenerationJob | null>(null);
@@ -151,20 +145,6 @@ export default function Home() {
       .catch(() => {});
     return () => control.abort();
   }, [pendingId, pendingTicket, accessCode, quotaEngine]);
-  async function attachPhoto(file?: File) {
-    if (!file || busyRef.current || pendingJob) return;
-    setPhotoBusy(true);
-    setPhotoError('');
-    try {
-      setReferencePhoto(await preparePhoto(file));
-    } catch (error) {
-      setPhotoError(
-        error instanceof Error ? error.message : 'Could not read this photo.',
-      );
-    } finally {
-      setPhotoBusy(false);
-    }
-  }
   function enableAudio() {
     if (typeof AudioContext === 'undefined') return;
     if (!audio.current || audio.current.state === 'closed')
@@ -324,12 +304,6 @@ export default function Home() {
       )
         setPendingJob(saved.pendingJob);
       if (typeof saved.draft === 'string') setDraft(saved.draft.slice(0, 2400));
-      if (
-        typeof saved.referencePhoto === 'string' &&
-        saved.referencePhoto.startsWith('data:image/jpeg;base64,') &&
-        saved.referencePhoto.length < 1_100_000
-      )
-        setReferencePhoto(saved.referencePhoto);
     } catch {}
     setHydrated(true);
     fetch('/api/health')
@@ -351,7 +325,7 @@ export default function Home() {
         'cut-chat-v1',
         JSON.stringify({
           draft,
-          referencePhoto,
+
           pendingJob,
           messages: messages.map((m) => ({
             ...m,
@@ -369,7 +343,7 @@ export default function Home() {
         }),
       );
     } catch {}
-  }, [messages, draft, hydrated, pendingJob, referencePhoto]);
+  }, [messages, draft, hydrated, pendingJob]);
   useEffect(() => {
     if (!input.current) return;
     input.current.style.height = 'auto';
@@ -651,7 +625,7 @@ export default function Home() {
   }
   async function send(value = draft) {
     const text = value.trim();
-    if (!text || busyRef.current || pendingJob || photoBusy) return;
+    if (!text || busyRef.current || pendingJob) return;
     enableAudio();
     busyRef.current = true;
     setDraft('');
@@ -682,7 +656,6 @@ export default function Home() {
             .filter((m) => !m.error)
             .map((m) => ({ role: m.role, content: m.text })),
           previousPlan: messages.findLast((m) => m.video)?.video?.plan,
-          ...(referencePhoto ? { referenceImage: referencePhoto } : {}),
         }),
         signal: AbortSignal.any([
           controller.signal,
@@ -709,7 +682,7 @@ export default function Home() {
           startedAt: Date.now(),
         };
         setPendingJob(job);
-        setReferencePhoto('');
+
         // Persist before submission so a reload or lost response cannot cause a second GPU job.
         try {
           sessionStorage.setItem(
@@ -753,8 +726,7 @@ export default function Home() {
   function newChat() {
     if (busyRef.current || pendingJob) return;
     setMessages([]);
-    setReferencePhoto('');
-    setPhotoError('');
+
     setDraft('');
     setActivePlan(null);
     setNotice('New chat started.');
@@ -1138,7 +1110,7 @@ export default function Home() {
                         <p>
                           {activePlan.reference.source === 'upload'
                             ? 'Animating your reference photo'
-                            : 'Animating a stock reference scene'}
+                            : 'Animating a scene selected for your product'}
                           <small>
                             Keeping the subject and setting, adding gentle
                             motion.
@@ -1311,48 +1283,6 @@ export default function Home() {
             }}
             className="composer"
           >
-            <input
-              ref={photoInput}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="sr-only"
-              tabIndex={-1}
-              aria-label="Choose reference photo"
-              disabled={busy || !!pendingJob || photoBusy}
-              onChange={(e) => {
-                void attachPhoto(e.target.files?.[0]);
-                e.target.value = '';
-              }}
-            />
-            {referencePhoto && (
-              <div className="reference-attachment">
-                {/* eslint-disable-next-line nextjs/no-img-element -- Locally resized photo preview. */}
-                <img
-                  src={referencePhoto}
-                  alt="Your reference, cropped for video"
-                  width={42}
-                  height={62}
-                />
-                <span>
-                  Your reference photo
-                  <small>
-                    Used by a public Hugging Face demo. Choose a shareable
-                    photo.
-                  </small>
-                </span>
-                <button
-                  type="button"
-                  aria-label="Remove reference photo"
-                  disabled={busy || photoBusy}
-                  onClick={() => setReferencePhoto('')}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            )}
-            {photoError && (
-              <output className="photo-error">{photoError}</output>
-            )}
             {!messages.length && (
               <div className="composer-label">
                 <Link2 size={14} /> YOUR PRODUCT, YOUR DIRECTION
@@ -1386,19 +1316,6 @@ export default function Home() {
               }}
             />
             <div className="composer-bottom">
-              <button
-                type="button"
-                className="attach-photo"
-                onClick={() => photoInput.current?.click()}
-                disabled={busy || !!pendingJob || photoBusy}
-              >
-                <ImagePlus size={16} />{' '}
-                {photoBusy
-                  ? 'Preparing photo…'
-                  : referencePhoto
-                    ? 'Change photo'
-                    : 'Add reference photo'}
-              </button>
               <span className="composer-status">
                 <span className="status-dot" />{' '}
                 {busy
@@ -1420,7 +1337,7 @@ export default function Home() {
                 <button
                   type="submit"
                   className="send"
-                  disabled={!draft.trim() || !!pendingJob || photoBusy}
+                  disabled={!draft.trim() || !!pendingJob}
                   aria-label="Send message"
                 >
                   <span>{messages.length ? 'Send' : 'Create a cut'}</span>

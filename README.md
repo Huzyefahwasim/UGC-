@@ -1,6 +1,6 @@
 # Cut
 
-Send a product URL and optionally attach a reference photo. Cut animates it with **Wan 2.2**, then adds captions, licensed music and a contextual GIF to return a finished vertical video.
+Send a product URL. Cut reads the product context, automatically selects a licensed category scene and animates it with **Wan 2.2**, then adds captions, licensed music and a contextual GIF to return a finished vertical video.
 
 Public repository: https://github.com/Huzyefahwasim/UGC-
 
@@ -23,7 +23,7 @@ No Higgsfield credentials are used. The free community Wan demo uses a shared GP
 - Greetings and questions stay in chat. Product introductions, URLs and explicit video requests create a brief.
 - Product-page metadata, audience, use moment and user preferences inform the hook, benefit, CTA and one filmable scene. Caption-only revisions preserve the established scene.
 - Eleven curated animated reactions match the product and tone: calm for meditation, thinking for learning, coffee for rituals, leaf for plant care, and others. Calm/thoughtful concepts get a quieter soundtrack, restrained motion and smaller captions above the face.
-- Add a JPG, PNG or WebP reference photo. The composer previews its center crop; the server verifies and re-encodes it before uploading to Hugging Face. Without an attachment, Cut uses a clearly labeled category stock scene.
+- No image input is required. Cut selects a licensed stock scene from the product category behind the scenes; the chat contains only the message input.
 - Wan animates the reference into five-second silent footage. The browser gently slows it into a six-second vertical edit.
 - The browser composites the footage with animated captions, a beat-reactive Google Noto GIF, music and a product CTA, then saves the export.
 - Keep the tab visible during the six-second finishing step. A failed finish can reuse the saved footage without another GPU submission.
