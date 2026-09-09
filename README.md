@@ -89,9 +89,8 @@ npm run lint
 npm run build
 ```
 
-Latest integration checkpoint: **133 tests passed**, with TypeScript, lint and production build passing. The deployed asset-assembly flow was tested with a real Linear product URL: an 8.02-second H.264/AAC export at 720 × 1280. This production test used Gemini; live Nemotron verification is pending. See [VERIFICATION.md](VERIFICATION.md).
+Latest integration checkpoint: **133 tests passed**, with TypeScript, lint and production build passing. The deployed asset-assembly flow was tested with a real Linear product URL: an 8.02-second H.264/AAC export at 720 × 1280. The provider-recovery release also completed a production Cherry Tree Solutions export (7.95 seconds, H.264/AAC, 720 × 1280). Reliable Nemotron responses remain unverified; the built-in planner keeps asset assembly available during provider failures. See [VERIFICATION.md](VERIFICATION.md).
 
 ## Agent capture
 
 [CAPTURE-TEST.md](CAPTURE-TEST.md) records capture checks completed before application code. [`.agent-logs/`](.agent-logs/) contains prompts and final responses committed at reviewed checkpoints. Historical logs preserve earlier implementations as recorded; tools, reasoning and internal agent sessions are excluded.
-
