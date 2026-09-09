@@ -26,15 +26,15 @@ Photos illustrate a category, not the exact product or a customer endorsement. M
 
 ## Chat model
 
-OpenRouter support is implemented for **Poolside Laguna S 2.1 (free)**:
+OpenRouter support is implemented for **NVIDIA Nemotron 3.5 Lightning (free)**:
 
 ~~~text
-poolside/laguna-s-2.1:free
+nvidia/nemotron-3.5-lightning:free
 ~~~
 
 The model organizes product facts, copy and asset choices; it does not generate video footage. Requests use the exact model above with zero-price routing and no provider fallback. Free-endpoint quotas and availability still apply. NVIDIA logs submitted content under its endpoint terms, so use shareable product and chat text.
 
-**Provider status:** Laguna S 2.1 is selected. The latest direct preflight returned HTTP 429: the free endpoint was temporarily rate-limited upstream. Successful live AI responses are not yet verified. If the model fails or takes longer than 25 seconds, the built-in planner uses website facts to assemble the video. That fallback uses templates and can repeat captions; it is not a successful AI response. No Gemini or paid-model fallback is used.
+**Provider status:** Nemotron 3.5 Lightning is selected. Direct verification produced a conversational reply and structured briefs using the application instructions. Free endpoints remain rate-limited. If the model fails or takes longer than 25 seconds, the built-in planner uses website facts; its templates can repeat captions. No Gemini or paid-model fallback is used.
 
 ## Run locally
 
@@ -52,8 +52,8 @@ Without a key for the selected provider, a limited deterministic fallback is ava
 
 | Variable | Purpose |
 | --- | --- |
-| `AI_PROVIDER` | Set to `openrouter` for Laguna S 2.1; `gemini` remains the code default and `openai` is also supported |
-| `OPENROUTER_API_KEY` | OpenRouter key for the exact free Laguna S 2.1 model; no separate model setting is needed |
+| `AI_PROVIDER` | Set to `openrouter` for Nemotron 3.5 Lightning; `gemini` remains the code default and `openai` is also supported |
+| `OPENROUTER_API_KEY` | OpenRouter key for the exact free Nemotron 3.5 Lightning model; no separate model setting is needed |
 | `GEMINI_API_KEY` | Google AI Studio key for conversation, captions and creative context |
 | `GEMINI_MODEL` | Configurable; current code default is `gemini-3.6-flash` |
 | `RENDER_SIGNING_SECRET` | Stable random secret for tickets and records |
@@ -61,7 +61,7 @@ Without a key for the selected provider, a limited deterministic fallback is ava
 | `OPENAI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` | Only used with `AI_PROVIDER=openai` |
 | `HUGGINGFACE_TOKEN` | Legacy Wan/LTX jobs only; unused by normal creation |
 
-For Laguna S 2.1, create a key in [OpenRouter](https://openrouter.ai/settings/keys). Gemini remains available with `AI_PROVIDER=gemini` and a [Google AI Studio](https://aistudio.google.com/apikey) key. Model access, quotas and charges depend on the connected account. Hosting and Blob have separate limits. No automatic paid-provider switch occurs. `/api/health` checks configuration, not remote credential validity.
+For Nemotron 3.5 Lightning, create a key in [OpenRouter](https://openrouter.ai/settings/keys). Gemini remains available with `AI_PROVIDER=gemini` and a [Google AI Studio](https://aistudio.google.com/apikey) key. Model access, quotas and charges depend on the connected account. Hosting and Blob have separate limits. No automatic paid-provider switch occurs. `/api/health` checks configuration, not remote credential validity.
 
 Production uses `UGC_`-prefixed settings when present, including `UGC_AI_PROVIDER` and `UGC_OPENROUTER_API_KEY`. Its dedicated Blob connection uses `UGC_READ_WRITE_TOKEN`; the local `BLOB_READ_WRITE_TOKEN` setting remains supported.
 
@@ -88,10 +88,11 @@ npm run lint
 npm run build
 ```
 
-Latest integration checkpoint: **131 tests passed**, with TypeScript, lint and production build passing. The deployed asset-assembly flow was tested with a real Linear product URL: an 8.02-second H.264/AAC export at 720 × 1280. The provider-recovery release also completed a production Cherry Tree Solutions export (7.95 seconds, H.264/AAC, 720 × 1280). The Laguna preflight was blocked by an upstream rate limit; the built-in planner keeps asset assembly available during provider failures. See [VERIFICATION.md](VERIFICATION.md).
+Latest integration checkpoint: **131 tests passed**, with TypeScript, lint and production build passing. The deployed asset-assembly flow was tested with a real Linear product URL: an 8.02-second H.264/AAC export at 720 × 1280. The provider-recovery release also completed a production Cherry Tree Solutions export (7.95 seconds, H.264/AAC, 720 × 1280). Lightning passed direct AI-response checks; the built-in planner keeps asset assembly available during provider failures. See [VERIFICATION.md](VERIFICATION.md).
 
 ## Agent capture
 
 [CAPTURE-TEST.md](CAPTURE-TEST.md) records capture checks completed before application code. [`.agent-logs/`](.agent-logs/) contains prompts and final responses committed at reviewed checkpoints. Historical logs preserve earlier implementations as recorded; tools, reasoning and internal agent sessions are excluded.
+
 
 

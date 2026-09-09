@@ -11,7 +11,7 @@ export function runtime(env: Record<string, string | undefined> = process.env) {
       provider,
       apiKey: setting('OPENROUTER_API_KEY', env),
       endpoint: 'https://openrouter.ai/api/v1',
-      model: 'poolside/laguna-s-2.1:free',
+      model: 'nvidia/nemotron-3.5-lightning:free',
     };
   return {
     provider,

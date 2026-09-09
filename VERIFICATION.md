@@ -191,3 +191,7 @@ Removed the studio access field, outgoing access headers and server-side code ch
 ## Laguna model switch — 2026-09-09
 
 Selected poolside/laguna-s-2.1:free using the existing OpenRouter credentials. Zero-price routing and disabled paid fallback remain. Updated model-contract test, README, environment example and Vercel guide. Direct preflight returned HTTP 429; a diagnostic response confirmed the model is temporarily rate-limited upstream. No successful Laguna completion is claimed. Historical Nemotron tests above describe previous releases.
+
+## Nemotron 3.5 Lightning — 2026-09-09
+
+Selected nvidia/nemotron-3.5-lightning:free with the existing OpenRouter key and zero-price routing. Direct creativeCompletion verification succeeded: conversational advice in 6.37 seconds, Cherry Tree Solutions brief in 7.19 seconds and Bloom plant-care brief in 3.04 seconds. Briefs used the actual application system instructions and returned different captions and scene directions. These were parsed model responses, not deterministic fallback output. Free endpoint availability can still vary.
