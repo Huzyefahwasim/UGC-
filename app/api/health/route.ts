@@ -2,13 +2,10 @@ import { setting } from '@/lib/config';
 import { runtime } from '@/lib/server';
 import { storageConfigured, storageMode } from '@/lib/storage';
 
-import { generationAccessRequired } from '@/lib/generation-access';
 export async function GET() {
   const storageReady = storageConfigured();
   const generationReady = Boolean(setting('RENDER_SIGNING_SECRET'));
-  const accessReady =
-    !generationAccessRequired() || Boolean(setting('STUDIO_ACCESS_CODE'));
-  const ready = storageReady && generationReady && accessReady;
+  const ready = storageReady && generationReady;
   return Response.json(
     {
       status: ready ? 'ok' : 'setup_required',
@@ -18,8 +15,8 @@ export async function GET() {
       generationConfigured: generationReady,
       generationProvider: 'stock',
       generationAuthenticated: true,
-      generationAccessRequired: generationAccessRequired(),
-      generationAccessConfigured: accessReady,
+      generationAccessRequired: false,
+      generationAccessConfigured: true,
       storageConfigured: storageReady,
       storageMode: storageMode(),
     },

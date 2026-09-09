@@ -195,35 +195,15 @@ void test('quota rejection reports a safe UTC reset without requesting generatio
   assert.equal(calls.length, 1);
 });
 
-void test('owner access is required before exposing or fetching the quota snapshot', async (t) => {
-  env(t, 'STUDIO_ACCESS_CODE', 'owner-access');
-  const request = respond(t, valid());
-  const denied = await GET(
-    new Request('http://localhost/api/generation-quota'),
-  );
-  assert.equal(denied.status, 401);
-  assert.equal(denied.headers.get('cache-control'), 'no-store');
-  assert.equal(request.mock.callCount(), 0);
-  const allowed = await GET(
-    new Request('http://localhost/api/generation-quota', {
-      headers: { 'x-studio-access': 'owner-access' },
-    }),
-  );
-  assert.equal(allowed.status, 200);
-  assert.equal(allowed.headers.get('cache-control'), 'no-store');
-  const body = await allowed.text();
-  assert.equal(JSON.parse(body).known, true);
-  assert.doesNotMatch(body, /owner-access|hf_|Secret/);
-  assert.equal(request.mock.callCount(), 1);
-});
-
-void test('production without an owner access code never queries quota', async (t) => {
+void test('quota snapshot is available without a studio code in production', async (t) => {
   env(t, 'NODE_ENV', 'production');
-  env(t, 'STUDIO_ACCESS_CODE');
-  const request = respond(t, valid());
-  const denied = await GET(
+  env(t, 'STUDIO_ACCESS_CODE', 'obsolete-code');
+  const upstream = respond(t, valid());
+  const response = await GET(
     new Request('http://localhost/api/generation-quota'),
   );
-  assert.equal(denied.status, 503);
-  assert.equal(request.mock.callCount(), 0);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.equal((await response.json()).known, true);
+  assert.equal(upstream.mock.callCount(), 1);
 });

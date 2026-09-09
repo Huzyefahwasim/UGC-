@@ -1,4 +1,3 @@
-import { checkGenerationAccess } from '@/lib/generation-access';
 import { verifyGenerationTicket } from '@/lib/generation-jobs';
 import { startGeneration } from '@/lib/generation-service';
 import { RequestError } from '@/lib/server';
@@ -15,9 +14,7 @@ export async function POST(request: Request) {
     const ticket = await verifyGenerationTicket(
       request.headers.get('x-generation-ticket') || '',
     );
-    const result = await startGeneration(ticket, () =>
-      checkGenerationAccess(request),
-    );
+    const result = await startGeneration(ticket, () => {});
     return Response.json(result, { status: 202 });
   } catch (error) {
     return Response.json(

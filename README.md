@@ -57,7 +57,6 @@ Without a key for the selected provider, a limited deterministic fallback is ava
 | `GEMINI_API_KEY` | Google AI Studio key for conversation, captions and creative context |
 | `GEMINI_MODEL` | Configurable; current code default is `gemini-3.6-flash` |
 | `RENDER_SIGNING_SECRET` | Stable random secret for tickets and records |
-| `STUDIO_ACCESS_CODE` | Required in production to restrict creation access |
 | `BLOB_READ_WRITE_TOKEN` | Public Vercel Blob store for production records and exports |
 | `OPENAI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` | Only used with `AI_PROVIDER=openai` |
 | `HUGGINGFACE_TOKEN` | Legacy Wan/LTX jobs only; unused by normal creation |
@@ -72,11 +71,11 @@ Next.js App Router, React, TypeScript and browser Canvas/MediaRecorder. Public-p
 
 Development uses ignored `.data/`; production requires Vercel Blob and refuses ephemeral local storage. Exports are public to anyone with the URL. Uploads are capped at 4,000,000 bytes. MP4/WebM support depends on the browser. No automatic retention cleanup is configured.
 
-Conversation and unfinished briefs are stored in the current tab's session. The studio code restricts creation; the per-process rate limiter is not a deployment-wide spending cap. Wan/LTX compatibility code remains for older jobs, but new product messages do not call those services or consume GPU allowance.
+Conversation and unfinished briefs are stored in the current tab's session. The per-process rate limiter is not a deployment-wide spending cap. Wan/LTX compatibility code remains for older jobs, but new product messages do not call those services or consume GPU allowance.
 
 ## Deployment and handoff
 
-Live app: **[ugc-puce.vercel.app](https://ugc-puce.vercel.app)**, deployed in the owner’s Vercel Hobby workspace. OpenRouter and public Blob storage are configured. Reviewers need the separately supplied studio access code. See [VERCEL.md](VERCEL.md).
+Live app: **[ugc-puce.vercel.app](https://ugc-puce.vercel.app)**, deployed in the owner’s Vercel Hobby workspace. OpenRouter and public Blob storage are configured. See [VERCEL.md](VERCEL.md).
 
 [WALKTHROUGH.md](WALKTHROUGH.md) is a script, not a completed recording. The camera-on walkthrough under five minutes remains outstanding.
 
@@ -89,8 +88,9 @@ npm run lint
 npm run build
 ```
 
-Latest integration checkpoint: **133 tests passed**, with TypeScript, lint and production build passing. The deployed asset-assembly flow was tested with a real Linear product URL: an 8.02-second H.264/AAC export at 720 × 1280. The provider-recovery release also completed a production Cherry Tree Solutions export (7.95 seconds, H.264/AAC, 720 × 1280). Reliable Nemotron responses remain unverified; the built-in planner keeps asset assembly available during provider failures. See [VERIFICATION.md](VERIFICATION.md).
+Latest integration checkpoint: **131 tests passed**, with TypeScript, lint and production build passing. The deployed asset-assembly flow was tested with a real Linear product URL: an 8.02-second H.264/AAC export at 720 × 1280. The provider-recovery release also completed a production Cherry Tree Solutions export (7.95 seconds, H.264/AAC, 720 × 1280). Reliable Nemotron responses remain unverified; the built-in planner keeps asset assembly available during provider failures. See [VERIFICATION.md](VERIFICATION.md).
 
 ## Agent capture
 
 [CAPTURE-TEST.md](CAPTURE-TEST.md) records capture checks completed before application code. [`.agent-logs/`](.agent-logs/) contains prompts and final responses committed at reviewed checkpoints. Historical logs preserve earlier implementations as recorded; tools, reasoning and internal agent sessions are excluded.
+

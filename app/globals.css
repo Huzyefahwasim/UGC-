@@ -1468,49 +1468,6 @@ h1 span {
     scroll-behavior: auto !important;
   }
 }
-.access-settings {
-  position: relative;
-  font-size: 11px;
-  color: #cbd4bd;
-}
-.access-settings summary {
-  cursor: pointer;
-  padding: 10px 0;
-}
-.access-settings > div {
-  position: absolute;
-  right: 0;
-  top: 38px;
-  width: 270px;
-  background: #22281b;
-  border: 1px solid #52623d;
-  border-radius: 12px;
-  padding: 17px;
-  z-index: 5;
-  box-shadow: 0 15px 40px #0008;
-}
-.access-settings label {
-  display: block;
-  margin-bottom: 9px;
-  font-size: 12px;
-}
-.access-settings input {
-  width: 100%;
-  padding: 11px;
-  font-size: 16px;
-  background: #14190e;
-  color: #fff;
-  border: 1px solid #667c43;
-  border-radius: 7px;
-  outline-color: var(--primary);
-}
-.access-settings small {
-  display: block;
-  font-size: 11px;
-  line-height: 1.5;
-  color: #bdcba9;
-  margin-top: 9px;
-}
 .generation-brief {
   display: flex;
   align-items: center;
@@ -1759,9 +1716,6 @@ h1 span {
 @media (max-width: 430px) {
   .header-actions {
     gap: 10px;
-  }
-  .access-settings > div {
-    right: -100px;
   }
   .pending-generation {
     align-items: flex-start;

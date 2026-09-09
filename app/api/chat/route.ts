@@ -24,7 +24,6 @@ import {
   validShot,
   DIRECTION_INSTRUCTION,
 } from '@/lib/video-direction';
-import { checkGenerationAccess } from '@/lib/generation-access';
 import type { Category } from '@/lib/types';
 import { creativeCompletion, withCreativeFallback } from '@/lib/llm';
 import {
@@ -205,7 +204,6 @@ export async function POST(request: Request) {
         ? revisionCaptions(previous?.captions, captions, latest)
         : captions,
     );
-    checkGenerationAccess(request);
     plan.shot = shotForRequest(
       { ...plan, shot: result.shot },
       latest,

@@ -1,16 +1,16 @@
 # Deploy Cut on Vercel
 
-Normal creation assembles licensed assets in the browser. It requires no GPU, Hugging Face token or video-generation service. The owner’s live deployment is https://ugc-puce.vercel.app. Its public health endpoint reports Gemini, signing, studio access and Blob ready.
+Normal creation assembles licensed assets in the browser. It requires no GPU, Hugging Face token or video-generation service. The owner’s live deployment is https://ugc-puce.vercel.app. Creation is public, with no studio access code. OpenRouter and Blob are configured.
 
 ## Setup
 
 1. Import [Huzyefahwasim/UGC-](https://github.com/Huzyefahwasim/UGC-) as a Next.js project in your Vercel account.
 2. Choose a supported Node version satisfying 22.13+. Install with `npm ci`, build with `npm run build`.
 3. Connect a **public Vercel Blob** store and expose `BLOB_READ_WRITE_TOKEN` to the deployment.
-4. Set a stable random `RENDER_SIGNING_SECRET` and a private `STUDIO_ACCESS_CODE`.
-5. Set `AI_PROVIDER=gemini`, `GEMINI_API_KEY` and an accessible `GEMINI_MODEL`. The code default is `gemini-3.6-flash`; account model access must be checked.
+4. Set a stable random `RENDER_SIGNING_SECRET`.
+5. Set `AI_PROVIDER=openrouter` and `OPENROUTER_API_KEY`. The exact free Nemotron model is selected in code.
 6. Deploy. The chat route declares a 90-second maximum; ensure your runtime supports its configuration. Normal composition runs in the browser.
-7. Configure deployment protection so intended signed-out reviewers can open the page. Share the studio code separately.
+7. Configure deployment protection so intended signed-out reviewers can open the page.
 
 Keep keys server-side and out of Git. Provider, hosting and storage charges depend on account settings. No automatic paid-provider switch is implemented.
 
@@ -18,7 +18,7 @@ Keep keys server-side and out of Git. Provider, hosting and storage charges depe
 
 - Open the site signed out and check `/api/health` reports ready. This checks configuration, not remote keys.
 - Send “hi” and “what can you do?”; neither should render.
-- Enter the studio code and send an unfamiliar readable product URL without an image.
+- Send an unfamiliar readable product URL without an image.
 - Keep the tab visible. Check all four layers in the eight-second result: photo, animated text, music and GIF.
 - Play the saved URL, download the file and reload the chat.
 - Confirm a question about a product URL stays conversational.
@@ -27,10 +27,10 @@ Keep keys server-side and out of Git. Provider, hosting and storage charges depe
 
 Local development uses ignored `.data/` without a Blob token. Production refuses ephemeral local storage. Preserve the signing secret and records for existing tickets and results.
 
-Exports are public to anyone with their URL, authorized by signed permits and capped at 4,000,000 bytes. Larger uploads are rejected. No automatic retention cleanup exists. Studio access does not cap account spending; the per-process rate limiter is not distributed.
+Exports are public to anyone with their URL, authorized by signed permits and capped at 4,000,000 bytes. Larger uploads are rejected. No automatic retention cleanup exists. The per-process rate limiter is not distributed.
 
 Older Wan/LTX compatibility routes retain their own tokens, quotas and longer timeouts. Those are not part of new asset-assembled cuts.
 
-Production connection: the ugc project uses UGC_READ_WRITE_TOKEN for its dedicated public Blob store. UGC_AI_PROVIDER, UGC_GEMINI_API_KEY, UGC_GEMINI_MODEL, UGC_RENDER_SIGNING_SECRET and UGC_STUDIO_ACCESS_CODE take precedence over their unprefixed equivalents; local configuration remains compatible.
 
-To switch to the prepared OpenRouter integration, set UGC_AI_PROVIDER=openrouter and UGC_OPENROUTER_API_KEY as a secret, then redeploy. The model is fixed to nvidia/nemotron-3-ultra-550b-a55b:free with zero-priced routing. Verify conversation and a complete product render before considering the switch complete.
+Production uses UGC_READ_WRITE_TOKEN for Blob. For OpenRouter, set UGC_AI_PROVIDER=openrouter and UGC_OPENROUTER_API_KEY as a secret, then redeploy. The model is fixed to nvidia/nemotron-3-ultra-550b-a55b:free with zero-priced routing. Verify conversation and a complete product render before considering the switch complete.
+

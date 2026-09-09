@@ -1,4 +1,3 @@
-import { checkGenerationAccess } from '../../../lib/generation-access.ts';
 import { getGenerationQuota } from '../../../lib/generation-quota.ts';
 import { RequestError } from '../../../lib/server.ts';
 import { WAN_REQUIRED_SECONDS } from '../../../lib/wan-config.ts';
@@ -6,7 +5,6 @@ import { WAN_REQUIRED_SECONDS } from '../../../lib/wan-config.ts';
 export async function GET(request: Request) {
   const headers = { 'Cache-Control': 'no-store' };
   try {
-    checkGenerationAccess(request);
     const required =
       new URL(request.url).searchParams.get('engine') === 'ltx'
         ? 120

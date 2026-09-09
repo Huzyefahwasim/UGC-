@@ -67,8 +67,6 @@ export default function Home() {
   const [status, setStatus] = useState('');
   const [pendingJob, setPendingJob] = useState<GenerationJob | null>(null);
   const [generationReady, setGenerationReady] = useState<boolean | null>(null);
-  const [accessRequired, setAccessRequired] = useState(false);
-  const [accessCode, setAccessCode] = useState('');
   const [jobPhase, setJobPhase] = useState('');
   const [copied, setCopied] = useState('');
   const [hydrated, setHydrated] = useState(false);
@@ -102,7 +100,6 @@ export default function Home() {
       const response = await fetch(
         `/api/generation-quota?engine=${quotaEngine}`,
         {
-          headers: { 'X-Studio-Access': accessCode },
           signal: AbortSignal.timeout(10000),
           cache: 'no-store',
         },
@@ -135,7 +132,6 @@ export default function Home() {
       })
       .catch(() => {});
     void fetch(`/api/generation-quota?engine=${quotaEngine}`, {
-      headers: { 'X-Studio-Access': accessCode },
       signal: control.signal,
       cache: 'no-store',
     })
@@ -144,7 +140,7 @@ export default function Home() {
       })
       .catch(() => {});
     return () => control.abort();
-  }, [pendingId, pendingTicket, accessCode, quotaEngine]);
+  }, [pendingId, pendingTicket, quotaEngine]);
   function enableAudio() {
     if (typeof AudioContext === 'undefined') return;
     if (!audio.current || audio.current.state === 'closed')
@@ -310,7 +306,6 @@ export default function Home() {
       .then((r) => r.json())
       .then((data) => {
         setGenerationReady(!!data.generationConfigured);
-        setAccessRequired(!!data.generationAccessRequired);
       })
       .catch(() => {});
     return () => {
@@ -525,7 +520,6 @@ export default function Home() {
       method: 'POST',
       headers: {
         'X-Generation-Ticket': job.ticket,
-        'X-Studio-Access': accessCode,
       },
       signal: AbortSignal.any([controller.signal, AbortSignal.timeout(295000)]),
     });
@@ -590,7 +584,6 @@ export default function Home() {
         method: 'POST',
         headers: {
           'X-Generation-Ticket': pendingJob.ticket,
-          'X-Studio-Access': accessCode,
         },
         signal: AbortSignal.any([
           controller.signal,
@@ -660,7 +653,6 @@ export default function Home() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Studio-Access': accessCode,
         },
         body: JSON.stringify({
           messages: history
@@ -780,25 +772,6 @@ export default function Home() {
           <Clapperboard size={14} /> Creator studio
         </span>
         <div className="header-actions">
-          {accessRequired && (
-            <details className="access-settings">
-              <summary>Studio access</summary>
-              <div>
-                <label htmlFor="studio-access">Generation access code</label>
-                <input
-                  id="studio-access"
-                  type="password"
-                  autoComplete="current-password"
-                  value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value)}
-                  placeholder="Enter your studio code"
-                />
-                <small>
-                  Enter the code shared by the owner of this studio.
-                </small>
-              </div>
-            </details>
-          )}
           <button
             className="new-chat"
             onClick={newChat}

@@ -1,4 +1,3 @@
-import { checkGenerationAccess } from '@/lib/generation-access';
 import { prepareGenerationRetry } from '@/lib/generation-retry';
 import { RequestError } from '@/lib/server';
 
@@ -16,7 +15,7 @@ export async function POST(
     const result = await prepareGenerationRetry(
       id,
       request.headers.get('x-generation-ticket') || '',
-      () => checkGenerationAccess(request),
+      () => {},
     );
     return Response.json(result, {
       headers: { 'Cache-Control': 'no-store' },

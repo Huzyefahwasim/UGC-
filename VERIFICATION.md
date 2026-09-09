@@ -183,3 +183,7 @@ Known upstream authentication, quota, timeout and malformed-output errors now fa
 Validation: 133 tests passed, production build (including TypeScript) and lint passed. Added regression coverage for provider failures with readable and unreadable links, greetings, and unexpected application errors. Live deployment verification follows separately.
 
 Live recovery verification: Vercel marked commit ded17ff successfully deployed. Submitted cherrytreesolution.com in the public app and received a completed export: https://ugc-puce.vercel.app/api/videos/e776535d-90bb-4a28-a104-2d8608425a42. Anonymous ffprobe confirmed 7.9525 seconds, H.264 video 720 × 1280, AAC audio, 3,198,393 bytes. This verifies the resilient assembly flow, not the remote model's availability.
+
+## Public creation — 2026-09-09
+
+Removed the studio access field, outgoing access headers and server-side code checks. Production no longer requires a studio code even if obsolete environment settings remain. Signed generation/upload tickets, origin validation and chat rate limits remain. All 131 current tests pass; obsolete access-gate tests were removed and quota coverage now checks public production access.
