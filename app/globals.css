@@ -1805,3 +1805,35 @@ h1 span {
     margin-top: 8px;
   }
 }
+
+@media (min-width: 561px) and (max-width: 850px) and (max-height: 750px) {
+  .studio:not(.in-chat) .conversation {
+    padding-block: 10px;
+  }
+  .studio:not(.in-chat) .welcome {
+    padding: 0;
+  }
+  .studio:not(.in-chat) .example-grid {
+    max-width: clamp(140px, calc((100dvh - 325px) * 1.1), 240px);
+    margin-inline: auto;
+  }
+  .studio:not(.in-chat) .ingredient-strip,
+  .studio:not(.in-chat) .showcase-caption {
+    display: none;
+  }
+  .studio:not(.in-chat) .composer textarea {
+    height: 34px;
+  }
+  .studio:not(.in-chat) .composer-dock {
+    padding-block: 8px 12px;
+  }
+  .studio:not(.in-chat) .composer {
+    padding: 12px 18px;
+  }
+  .studio:not(.in-chat) .composer-label {
+    margin-bottom: 8px;
+  }
+  .studio:not(.in-chat) .composer-bottom {
+    margin-top: 8px;
+  }
+}
