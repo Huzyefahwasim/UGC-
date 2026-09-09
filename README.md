@@ -2,7 +2,7 @@
 
 Turn a product link into an eight-second vertical marketing video, directly in chat. **AI-organized, not AI-generated:** Cut selects and assembles a background photo, animated text, music and a contextual GIF.
 
-[Public repository](https://github.com/Huzyefahwasim/UGC-) · [Deployment](VERCEL.md) · [Asset credits](ASSETS.md) · [Verification](VERIFICATION.md)
+[Live app](https://ugc-puce.vercel.app) · [Public repository](https://github.com/Huzyefahwasim/UGC-) · [Deployment](VERCEL.md) · [Asset credits](ASSETS.md) · [Verification](VERIFICATION.md)
 
 ## How it works
 
@@ -24,6 +24,18 @@ No image upload or video-generation API is required. Keep the tab visible during
 
 Photos illustrate a category, not the exact product or a customer endorsement. Music and GIFs are curated; current trending status is not verified. See [DIRECTION.md](DIRECTION.md) and [ASSETS.md](ASSETS.md).
 
+## Chat model
+
+OpenRouter support is implemented for **NVIDIA Nemotron 3 Ultra (free)**:
+
+~~~text
+nvidia/nemotron-3-ultra-550b-a55b:free
+~~~
+
+The model organizes product facts, copy and asset choices; it does not generate video footage. Requests use the exact model above with zero-price routing and no provider fallback. Free-endpoint quotas and availability still apply. NVIDIA logs submitted content under its endpoint terms, so use shareable product and chat text.
+
+**Switch status:** integration tests and the build pass. A real OpenRouter key-backed test and production switch are pending; the deployed app currently uses Gemini.
+
 ## Run locally
 
 Requires Node 22.13+ and npm.
@@ -31,16 +43,17 @@ Requires Node 22.13+ and npm.
 1. Run `npm ci`.
 2. Copy `.env.example` to `.env`.
 3. Set `RENDER_SIGNING_SECRET` using the random-secret command in that file.
-4. Add `GEMINI_API_KEY` for conversational replies and product-specific copy.
+4. Set `AI_PROVIDER=openrouter` and add your `OPENROUTER_API_KEY`.
 5. Run `npm run dev` and open [localhost:3000](http://localhost:3000).
 
-Without a Gemini key, a limited deterministic fallback is available. Keep secrets server-side; never commit `.env` or prefix secrets with `NEXT_PUBLIC_`.
+Without a key for the selected provider, a limited deterministic fallback is available. Keep secrets server-side; never commit `.env` or prefix secrets with `NEXT_PUBLIC_`.
 
 ## Configuration
 
 | Variable | Purpose |
 | --- | --- |
-| `AI_PROVIDER` | Defaults to `gemini`; `openai` selects the optional legacy chat integration |
+| `AI_PROVIDER` | Set to `openrouter` for Nemotron; `gemini` remains the code default and `openai` is also supported |
+| `OPENROUTER_API_KEY` | OpenRouter key for the exact free Nemotron model; no separate model setting is needed |
 | `GEMINI_API_KEY` | Google AI Studio key for conversation, captions and creative context |
 | `GEMINI_MODEL` | Configurable; current code default is `gemini-3.6-flash` |
 | `RENDER_SIGNING_SECRET` | Stable random secret for tickets and records |
@@ -49,7 +62,9 @@ Without a Gemini key, a limited deterministic fallback is available. Keep secret
 | `OPENAI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` | Only used with `AI_PROVIDER=openai` |
 | `HUGGINGFACE_TOKEN` | Legacy Wan/LTX jobs only; unused by normal creation |
 
-Create a key in [Google AI Studio](https://aistudio.google.com/apikey). Model access, quotas and charges depend on the connected account. Hosting and Blob have separate limits. No automatic paid-provider switch occurs. `/api/health` checks configuration, not remote credential validity.
+For Nemotron, create a key in [OpenRouter](https://openrouter.ai/settings/keys). Gemini remains available with `AI_PROVIDER=gemini` and a [Google AI Studio](https://aistudio.google.com/apikey) key. Model access, quotas and charges depend on the connected account. Hosting and Blob have separate limits. No automatic paid-provider switch occurs. `/api/health` checks configuration, not remote credential validity.
+
+Production uses `UGC_`-prefixed settings when present, including `UGC_AI_PROVIDER` and `UGC_OPENROUTER_API_KEY`. Its dedicated Blob connection uses `UGC_READ_WRITE_TOKEN`; the local `BLOB_READ_WRITE_TOKEN` setting remains supported.
 
 ## Architecture and limits
 
@@ -74,14 +89,8 @@ npm run lint
 npm run build
 ```
 
-Latest functional checkpoint: **131 tests passed**, plus a real link-only Cherry Tree Solutions export measured at 8.02 seconds, H.264/AAC, 720 × 1280. See [VERIFICATION.md](VERIFICATION.md).
+Latest integration checkpoint: **132 tests passed**, with TypeScript, lint and production build passing. The deployed asset-assembly flow was tested with a real Linear product URL: an 8.02-second H.264/AAC export at 720 × 1280. This production test used Gemini; live Nemotron verification is pending. See [VERIFICATION.md](VERIFICATION.md).
 
 ## Agent capture
 
 [CAPTURE-TEST.md](CAPTURE-TEST.md) records capture checks completed before application code. [`.agent-logs/`](.agent-logs/) contains prompts and final responses committed at reviewed checkpoints. Historical logs preserve earlier implementations as recorded; tools, reasoning and internal agent sessions are excluded.
-
-Production connection: the ugc project uses UGC_READ_WRITE_TOKEN for its dedicated public Blob store. UGC_AI_PROVIDER, UGC_GEMINI_API_KEY, UGC_GEMINI_MODEL, UGC_RENDER_SIGNING_SECRET and UGC_STUDIO_ACCESS_CODE take precedence over their unprefixed equivalents; local configuration remains compatible.
-
-## OpenRouter Nemotron option
-
-Set AI_PROVIDER=openrouter and OPENROUTER_API_KEY to use nvidia/nemotron-3-ultra-550b-a55b:free. Production supports UGC_AI_PROVIDER and UGC_OPENROUTER_API_KEY. The integration fixes the OpenRouter endpoint and exact free model, disallows provider fallbacks and sets a zero-price ceiling. It does not send the unsupported response_format option; JSON is prompted and validated locally. Free endpoint availability and quotas still apply. NVIDIA logs submitted content under its free-endpoint terms; send only shareable product/chat text. A real key-backed test is still pending; production remains on Gemini until verified.
