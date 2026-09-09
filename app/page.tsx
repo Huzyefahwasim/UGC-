@@ -663,7 +663,7 @@ export default function Home() {
         }),
         signal: AbortSignal.any([
           controller.signal,
-          AbortSignal.timeout(85000),
+          AbortSignal.timeout(160000),
         ]),
       });
       const result = await response.json();

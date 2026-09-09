@@ -9,7 +9,7 @@ Normal creation assembles licensed assets in the browser. It requires no GPU, Hu
 3. Connect a **public Vercel Blob** store and expose `BLOB_READ_WRITE_TOKEN` to the deployment.
 4. Set a stable random `RENDER_SIGNING_SECRET`.
 5. Set `AI_PROVIDER=openrouter` and `OPENROUTER_API_KEY`. The exact free Nemotron 3.5 Lightning model is selected in code.
-6. Deploy. The chat route declares a 90-second maximum; ensure your runtime supports its configuration. Normal composition runs in the browser.
+6. Deploy. The chat route declares a 150-second maximum, with a 120-second OpenRouter budget and a 160-second browser timeout; ensure your runtime supports its configuration. Normal composition runs in the browser.
 7. Configure deployment protection so intended signed-out reviewers can open the page.
 
 Keep keys server-side and out of Git. Provider, hosting and storage charges depend on account settings. No automatic paid-provider switch is implemented.
@@ -33,4 +33,5 @@ Older Wan/LTX compatibility routes retain their own tokens, quotas and longer ti
 
 
 Production uses UGC_READ_WRITE_TOKEN for Blob. For OpenRouter, set UGC_AI_PROVIDER=openrouter and UGC_OPENROUTER_API_KEY as a secret, then redeploy. The model is fixed to nvidia/nemotron-3.5-lightning:free with zero-priced routing. Verify conversation and a complete product render before considering the switch complete.
+
 
