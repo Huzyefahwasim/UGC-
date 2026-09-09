@@ -175,3 +175,9 @@ The locally saved OpenRouter key was tested against nvidia/nemotron-3-ultra-550b
 ## Requested production provider switch
 
 Owner confirmed the Gemini key was deleted and requested switching despite the Nemotron timeouts. UGC_OPENROUTER_API_KEY was imported to Vercel and UGC_AI_PROVIDER changed to openrouter. The exact free model and zero-price restrictions remain. Earlier render tests used Gemini and do not establish Nemotron reliability.
+
+## Provider outage recovery — 2026-09-09
+
+Known upstream authentication, quota, timeout and malformed-output errors now fall back to the deterministic product planner. Readable product links keep rendering from website facts; greetings remain chat and unreadable products request context. The model request is bounded to 25 seconds, including body reads. Timeout messages no longer report malformed JSON. OpenRouter remains selected, with zero-price routing; no additional provider is called.
+
+Validation: 133 tests passed, production build (including TypeScript) and lint passed. Added regression coverage for provider failures with readable and unreadable links, greetings, and unexpected application errors. Live deployment verification follows separately.

@@ -2,6 +2,19 @@ import { RequestError, readLimited, type runtime } from './server.ts';
 
 type Message = { role: 'system' | 'user' | 'assistant'; content: string };
 
+// Recover only from known upstream failures; never hide application bugs.
+export async function withCreativeFallback<T>(
+  complete: () => Promise<T>,
+  fallback: () => T,
+): Promise<T> {
+  try {
+    return await complete();
+  } catch (error) {
+    if (!(error instanceof RequestError)) throw error;
+    return fallback();
+  }
+}
+
 export async function creativeCompletion(
   settings: ReturnType<typeof runtime>,
   messages: Message[],
@@ -57,6 +70,7 @@ export async function creativeCompletion(
         messages,
       };
   let response: Response;
+  const signal = AbortSignal.timeout(25000);
   try {
     response = await send(url, {
       method: 'POST',
@@ -68,13 +82,13 @@ export async function creativeCompletion(
           : { Authorization: `Bearer ${settings.apiKey}` }),
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(
-        settings.provider === 'openrouter' ? 65000 : 35000,
-      ),
+      signal,
     });
   } catch {
     throw new RequestError(
-      `${label} couldn’t connect. Please try again shortly.`,
+      signal.aborted
+        ? `${label} took too long to respond.`
+        : `${label} couldn’t connect. Please try again shortly.`,
       503,
     );
   }
@@ -133,6 +147,8 @@ export async function creativeCompletion(
       throw new Error('Invalid brief');
     return result;
   } catch {
+    if (signal.aborted)
+      throw new RequestError(`${label} took too long to respond.`, 503);
     throw new RequestError(
       'The creative brief didn’t come through completely. Please try again.',
       502,

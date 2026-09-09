@@ -34,7 +34,7 @@ nvidia/nemotron-3-ultra-550b-a55b:free
 
 The model organizes product facts, copy and asset choices; it does not generate video footage. Requests use the exact model above with zero-price routing and no provider fallback. Free-endpoint quotas and availability still apply. NVIDIA logs submitted content under its endpoint terms, so use shareable product and chat text.
 
-**Provider status:** production is configured for OpenRouter Nemotron at the owner’s request after the Gemini key was revoked. Earlier live preflight requests timed out after 65 seconds; reliable Nemotron responses are not yet verified. No Gemini fallback is used.
+**Provider status:** production is configured for OpenRouter Nemotron at the owner’s request after the Gemini key was revoked. Earlier live preflight requests timed out after 65 seconds; reliable Nemotron responses are not yet verified. No Gemini fallback is used. If the model fails or takes longer than 25 seconds, the built-in planner uses available website facts to assemble the video. General conversation is limited while the model is unavailable; unreadable products still require a description.
 
 ## Run locally
 
@@ -89,8 +89,9 @@ npm run lint
 npm run build
 ```
 
-Latest integration checkpoint: **132 tests passed**, with TypeScript, lint and production build passing. The deployed asset-assembly flow was tested with a real Linear product URL: an 8.02-second H.264/AAC export at 720 × 1280. This production test used Gemini; live Nemotron verification is pending. See [VERIFICATION.md](VERIFICATION.md).
+Latest integration checkpoint: **133 tests passed**, with TypeScript, lint and production build passing. The deployed asset-assembly flow was tested with a real Linear product URL: an 8.02-second H.264/AAC export at 720 × 1280. This production test used Gemini; live Nemotron verification is pending. See [VERIFICATION.md](VERIFICATION.md).
 
 ## Agent capture
 
 [CAPTURE-TEST.md](CAPTURE-TEST.md) records capture checks completed before application code. [`.agent-logs/`](.agent-logs/) contains prompts and final responses committed at reviewed checkpoints. Historical logs preserve earlier implementations as recorded; tools, reasoning and internal agent sessions are excluded.
+

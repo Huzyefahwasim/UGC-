@@ -283,6 +283,6 @@ export function fallbackReply(
   return {
     kind: 'chat',
     reply:
-      'I’m running in basic mode while the AI assistant is being connected. I can make product videos and adjust their hooks. Send a product link, or describe its name and what it does.',
+      'I’m running in basic mode because the AI assistant is unavailable. I can make product videos and adjust their hooks. Send a product link, or describe its name and what it does.',
   };
 }

@@ -230,3 +230,50 @@ void test('OpenRouter uses the exact free model and its own credentials without 
   );
   assert.deepEqual(result, { kind: 'chat', reply: 'Hello' });
 });
+
+void test('Provider failures preserve grounded product rendering and conversational intent', async () => {
+  const { withCreativeFallback } = await import('../lib/llm.ts');
+  const { fallbackReply } = await import('../lib/conversation.ts');
+  const website = {
+    product: 'Cherry Tree Solutions',
+    description: 'Accounting and AI automation services',
+    body: 'Bookkeeping and lead management.',
+  };
+  for (const status of [429, 502, 503]) {
+    const fail = async () => {
+      throw new RequestError('Upstream failed', status);
+    };
+    const product = await withCreativeFallback(fail, () =>
+      fallbackReply('cherrytreesolution.com', website),
+    );
+    assert.equal(product.kind, 'render');
+    assert.equal(product.description, website.description);
+    assert.equal(product.captions?.length, 3);
+    assert.equal(
+      (await withCreativeFallback(fail, () => fallbackReply('hi'))).kind,
+      'chat',
+    );
+    assert.equal(
+      (
+        await withCreativeFallback(fail, () =>
+          fallbackReply(
+            'unknown.example',
+            undefined,
+            undefined,
+            'Website unavailable',
+          ),
+        )
+      ).kind,
+      'chat',
+    );
+  }
+  await assert.rejects(
+    withCreativeFallback(
+      async () => {
+        throw new TypeError('bug');
+      },
+      () => ({ kind: 'chat' }),
+    ),
+    /bug/,
+  );
+});
