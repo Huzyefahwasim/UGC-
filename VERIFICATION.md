@@ -171,3 +171,7 @@ A proposed background auto-push of future log entries was rejected by automatic 
 ## OpenRouter live preflight — pending switch
 
 The locally saved OpenRouter key was tested against nvidia/nemotron-3-ultra-550b-a55b:free with zero-price routing and no provider fallback. Three requests did not return a complete result within 65 seconds, including short greetings and explicit reasoning disabled. Authentication success was not established by these timeouts. The model catalog reports optional reasoning; the adapter now sends enabled:false instead of unsupported effort:none. Seven LLM adapter tests and lint passed. Production remains on Gemini; no paid endpoint was used.
+
+## Requested production provider switch
+
+Owner confirmed the Gemini key was deleted and requested switching despite the Nemotron timeouts. UGC_OPENROUTER_API_KEY was imported to Vercel and UGC_AI_PROVIDER changed to openrouter. The exact free model and zero-price restrictions remain. Earlier render tests used Gemini and do not establish Nemotron reliability.

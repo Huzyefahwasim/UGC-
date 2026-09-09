@@ -34,7 +34,7 @@ nvidia/nemotron-3-ultra-550b-a55b:free
 
 The model organizes product facts, copy and asset choices; it does not generate video footage. Requests use the exact model above with zero-price routing and no provider fallback. Free-endpoint quotas and availability still apply. NVIDIA logs submitted content under its endpoint terms, so use shareable product and chat text.
 
-**Switch status:** integration tests and the build pass. A real OpenRouter key-backed test and production switch are pending; the deployed app currently uses Gemini.
+**Provider status:** production is configured for OpenRouter Nemotron at the owner’s request after the Gemini key was revoked. Earlier live preflight requests timed out after 65 seconds; reliable Nemotron responses are not yet verified. No Gemini fallback is used.
 
 ## Run locally
 
@@ -76,7 +76,7 @@ Conversation and unfinished briefs are stored in the current tab's session. The 
 
 ## Deployment and handoff
 
-Live app: **[ugc-puce.vercel.app](https://ugc-puce.vercel.app)**, deployed in the owner’s Vercel Hobby workspace. Gemini and public Blob storage are configured. Reviewers need the separately supplied studio access code. See [VERCEL.md](VERCEL.md).
+Live app: **[ugc-puce.vercel.app](https://ugc-puce.vercel.app)**, deployed in the owner’s Vercel Hobby workspace. OpenRouter and public Blob storage are configured. Reviewers need the separately supplied studio access code. See [VERCEL.md](VERCEL.md).
 
 [WALKTHROUGH.md](WALKTHROUGH.md) is a script, not a completed recording. The camera-on walkthrough under five minutes remains outstanding.
 
