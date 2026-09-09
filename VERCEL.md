@@ -30,3 +30,5 @@ Local development uses ignored `.data/` without a Blob token. Production refuses
 Exports are public to anyone with their URL, authorized by signed permits and capped at 4,000,000 bytes. Larger uploads are rejected. No automatic retention cleanup exists. Studio access does not cap account spending; the per-process rate limiter is not distributed.
 
 Older Wan/LTX compatibility routes retain their own tokens, quotas and longer timeouts. Those are not part of new asset-assembled cuts.
+
+Production connection: the ugc project uses UGC_READ_WRITE_TOKEN for its dedicated public Blob store. UGC_AI_PROVIDER, UGC_GEMINI_API_KEY, UGC_GEMINI_MODEL, UGC_RENDER_SIGNING_SECRET and UGC_STUDIO_ACCESS_CODE take precedence over their unprefixed equivalents; local configuration remains compatible.

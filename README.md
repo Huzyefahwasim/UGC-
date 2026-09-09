@@ -79,3 +79,5 @@ Latest functional checkpoint: **131 tests passed**, plus a real link-only Cherry
 ## Agent capture
 
 [CAPTURE-TEST.md](CAPTURE-TEST.md) records capture checks completed before application code. [`.agent-logs/`](.agent-logs/) contains prompts and final responses committed at reviewed checkpoints. Historical logs preserve earlier implementations as recorded; tools, reasoning and internal agent sessions are excluded.
+
+Production connection: the ugc project uses UGC_READ_WRITE_TOKEN for its dedicated public Blob store. UGC_AI_PROVIDER, UGC_GEMINI_API_KEY, UGC_GEMINI_MODEL, UGC_RENDER_SIGNING_SECRET and UGC_STUDIO_ACCESS_CODE take precedence over their unprefixed equivalents; local configuration remains compatible.

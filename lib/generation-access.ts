@@ -1,15 +1,16 @@
+import { setting } from './config.ts';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { RequestError } from './server.ts';
 
 export const generationAccessRequired = () =>
   Boolean(
-    process.env.STUDIO_ACCESS_CODE?.trim() ||
+    setting('STUDIO_ACCESS_CODE') ||
     process.env.VERCEL ||
     process.env.NODE_ENV === 'production',
   );
 
 export function checkGenerationAccess(request: Request) {
-  const code = process.env.STUDIO_ACCESS_CODE?.trim();
+  const code = setting('STUDIO_ACCESS_CODE');
   if (!code && generationAccessRequired())
     throw new RequestError(
       'The studio owner needs to configure a generation access code to protect the free GPU allowance.',

@@ -1,14 +1,15 @@
+import { setting } from './config.ts';
 import { createHash } from 'node:crypto';
 
 export function runtime(env: Record<string, string | undefined> = process.env) {
   // Gemini is the default. Legacy keys never silently select a paid provider.
-  const provider = env.AI_PROVIDER?.trim() || 'gemini';
+  const provider = setting('AI_PROVIDER', env) || 'gemini';
   if (!['gemini', 'openai'].includes(provider))
     throw new Error('AI_PROVIDER must be gemini or openai.');
   return {
     provider,
     apiKey: (provider === 'gemini'
-      ? env.GEMINI_API_KEY
+      ? setting('GEMINI_API_KEY', env)
       : env.OPENAI_API_KEY
     )?.trim(),
     endpoint:
@@ -20,7 +21,7 @@ export function runtime(env: Record<string, string | undefined> = process.env) {
           ),
     model:
       provider === 'gemini'
-        ? env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash'
+        ? setting('GEMINI_MODEL', env) || 'gemini-3.6-flash'
         : env.AI_MODEL?.trim() || 'gpt-4.1-mini',
   };
 }

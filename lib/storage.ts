@@ -1,3 +1,4 @@
+import { setting } from './config.ts';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile, link, unlink } from 'node:fs/promises';
 import path from 'node:path';
@@ -11,7 +12,7 @@ const UUID =
 export const isVideoId = (id: string) => UUID.test(id);
 
 export function storageMode(): 'blob' | 'local' | 'unavailable' {
-  if (process.env.BLOB_READ_WRITE_TOKEN?.trim()) return 'blob';
+  if (setting('BLOB_READ_WRITE_TOKEN')) return 'blob';
   return process.env.VERCEL || process.env.NODE_ENV === 'production'
     ? 'unavailable'
     : 'local';
@@ -89,7 +90,7 @@ export async function saveVideo(
   if (storageMode() === 'blob') {
     try {
       await put(`videos/${id}`, Buffer.from(bytes), {
-        token: process.env.BLOB_READ_WRITE_TOKEN,
+        token: setting('BLOB_READ_WRITE_TOKEN'),
         access: 'public',
         addRandomSuffix: false,
         allowOverwrite: false,
@@ -99,7 +100,7 @@ export async function saveVideo(
     } catch {
       // This read only classifies a failed atomic write; it is not the replay guard.
       const exists = await head(`videos/${id}`, {
-        token: process.env.BLOB_READ_WRITE_TOKEN,
+        token: setting('BLOB_READ_WRITE_TOKEN'),
       }).catch(() => null);
       if (exists) throw replayError();
       throw new RequestError(
@@ -137,7 +138,7 @@ export async function findVideo(id: string): Promise<StoredVideo | null> {
   if (storageMode() === 'blob') {
     try {
       const object = await head(`videos/${id}`, {
-        token: process.env.BLOB_READ_WRITE_TOKEN,
+        token: setting('BLOB_READ_WRITE_TOKEN'),
       });
       if (
         object.contentType !== 'video/mp4' &&

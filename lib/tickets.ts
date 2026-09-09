@@ -1,3 +1,4 @@
+import { setting } from './config.ts';
 import {
   createHmac,
   randomBytes,
@@ -15,8 +16,7 @@ type RenderPermit = { v: 1; id: string; expires: number; product: string };
 async function signingKey() {
   requireStorage();
   const configured =
-    process.env.RENDER_SIGNING_SECRET?.trim() ||
-    process.env.BLOB_READ_WRITE_TOKEN?.trim();
+    setting('RENDER_SIGNING_SECRET') || setting('BLOB_READ_WRITE_TOKEN');
   if (configured)
     return createHmac('sha256', configured)
       .update('cut-render-tickets-v1')

@@ -1,3 +1,4 @@
+import { setting } from './config.ts';
 import {
   createCipheriv,
   createDecipheriv,
@@ -37,7 +38,7 @@ type GenerationResult = { providerId?: string; error?: string };
 type RecordKind = 'claim' | 'result';
 
 function keyFor(purpose: 'ticket' | 'record') {
-  const secret = process.env.RENDER_SIGNING_SECRET?.trim();
+  const secret = setting('RENDER_SIGNING_SECRET');
   if (!secret)
     throw new RequestError(
       'Video generation needs a stable RENDER_SIGNING_SECRET on the server.',
@@ -203,7 +204,7 @@ function storageError() {
 async function blobMetadata(key: string) {
   try {
     const metadata = await head(key, {
-      token: process.env.BLOB_READ_WRITE_TOKEN,
+      token: setting('BLOB_READ_WRITE_TOKEN'),
       abortSignal: AbortSignal.timeout(5_000),
     });
     const url = new URL(metadata.url);
@@ -250,7 +251,7 @@ async function createImmutable(key: string, bytes: Buffer): Promise<boolean> {
   if (storageMode() === 'blob') {
     try {
       await put(key, bytes, {
-        token: process.env.BLOB_READ_WRITE_TOKEN,
+        token: setting('BLOB_READ_WRITE_TOKEN'),
         access: 'public',
         addRandomSuffix: false,
         allowOverwrite: false,

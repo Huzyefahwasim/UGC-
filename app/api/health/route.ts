@@ -1,13 +1,13 @@
+import { setting } from '@/lib/config';
 import { runtime } from '@/lib/server';
 import { storageConfigured, storageMode } from '@/lib/storage';
 
 import { generationAccessRequired } from '@/lib/generation-access';
 export async function GET() {
   const storageReady = storageConfigured();
-  const generationReady = Boolean(process.env.RENDER_SIGNING_SECRET?.trim());
+  const generationReady = Boolean(setting('RENDER_SIGNING_SECRET'));
   const accessReady =
-    !generationAccessRequired() ||
-    Boolean(process.env.STUDIO_ACCESS_CODE?.trim());
+    !generationAccessRequired() || Boolean(setting('STUDIO_ACCESS_CODE'));
   const ready = storageReady && generationReady && accessReady;
   return Response.json(
     {
