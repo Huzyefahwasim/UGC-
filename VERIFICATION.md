@@ -2,6 +2,18 @@
 
 > Deployment status: the user reported deleting the former ChatGPT Site. URLs in the earlier evidence below are historical and are not the current deliverable. The app is being prepared for user-managed Vercel hosting; no Vercel production deployment has been performed.
 
+## Current asset assembly — 2026-09-09
+
+- New product messages assemble a photo, animated captions, music and a contextual GIF without GPU requests.
+- Real browser test: sent only cherrytreesolution.com and received a finished video without a follow-up question. Local output: /api/videos/e550fa40-c41d-4cf1-9ffa-aec8e1d91ce0. This is not a production URL.
+- FFprobe: 8.018967 seconds, H.264/AAC, 720 × 1280, 3,288,996 bytes. Chat supplied playback, download and open-video links.
+- Functional checkpoint 5a7f97d: 131 tests, type checking, lint and production build passed.
+- Limitations: illustrative category photos, no verified trending-audio feed, live deployment and camera-on recording outstanding.
+
+## Historical checkpoints
+
+Everything below describes earlier implementations. Image uploads, GPU instructions and older test counts do not describe the current default. Original agent logs are preserved as historical records.
+
 ## Wan 2.2 reference-image engine — 2026-09-09
 
 - User selected Wan 2.2 with reference images. The inspected 5B demo was in RUNTIME_ERROR; the selected running community Space is dream2589632147/Dream-wan2-2-faster-Pro, revision a8f5e6db975eb1c427eff6f41db8f38dc20be23e. Its public API and source confirm Wan2.2-I2V-A14B, Lightx2v acceleration, a nine-argument image-to-video endpoint and direct FileData output. This is a community demo, not an official Wan API.

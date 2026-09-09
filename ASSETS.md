@@ -1,10 +1,8 @@
 # Media sources and attribution
 
-## AI footage
+## Current asset assembly
 
-Cut uses Lightricks LTX-Video 0.9.8 13B distilled through its official Hugging Face Space. AI footage is disclosed in the output and does not represent real customer endorsement. The model uses its [Open Weights License](https://huggingface.co/Lightricks/LTX-Video/blob/main/LTX-Video-Open-Weights-License-0.X.txt); model terms apply separately from application code.
-
-Cut adds the GIF and music below to generated footage. Photography is used for concept previews and the explicitly selected free-asset fallback.
+New cuts assemble the photography, music and GIFs below. No AI footage is generated. Photos are illustrative and music is curated; current trending status is not verified. Older Wan/LTX outputs retain their original provider credits.
 
 ## Animated reactions
 

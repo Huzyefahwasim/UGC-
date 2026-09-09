@@ -1,29 +1,22 @@
 # Camera-on walkthrough — target three minutes
 
-Record with your own camera on in Loom or a similar recorder. Keep the finished recording under five minutes. This script is not the recording.
+Record with your camera on using Loom or a similar recorder. Keep the result under five minutes. This is a script, not a recording.
 
-Before recording, deploy using VERCEL.md, connect your free Hugging Face token and optional chat provider, and test an unfamiliar product URL. Save enough daily GPU allowance for the demonstration.
+Before recording, deploy using [VERCEL.md](VERCEL.md), connect Gemini and test an unfamiliar product URL.
 
-0:00–0:25 — Open the public Vercel URL in a signed-out window. Show the camera bubble and enter the studio code. “Cut turns a product link into a directed video with captions, music and a reaction GIF.”
+- **0:00–0:25:** Open the live app signed out, show the camera bubble and enter the studio code. Explain that Cut organizes existing assets into an eight-second video.
+- **0:25–0:45:** Send “hi” and “what can you do?”. Show that conversational messages do not render.
+- **0:45–1:20:** Paste a new product URL. Explain that the app reads the page and selects copy, background, soundtrack and reaction automatically. No image upload is needed.
+- **1:20–2:10:** Play the result with sound. Point out the photo background, animated text, music and GIF on top. Open the saved link and download it.
+- **2:10–2:35:** Expand the brief and credits. Explain that AI organizes assets, not generated footage. Photos are illustrative; music is curated rather than verified as trending.
+- **2:35–3:00:** Show the public repository, capture test and incremental agent-log commits.
 
-0:25–0:45 — Send “hi” and “what can you do?” Show that normal chat does not start a GPU generation. If no chat key is connected, describe it honestly as a basic conversational fallback.
+Keep the app visible during composition. Do not record secrets. If Gemini is disconnected, describe the conversational fallback honestly. Do not promise unlimited free hosting or API use.
 
-0:45–1:20 — Paste a new product URL with a visual preference, such as “warm morning light and a slow close-up.” Explain that page context informs one filmable shot rather than a generic long prompt.
+## Submission fields
 
-Generation depends on a shared GPU queue. Pause the recorder if necessary and disclose that the wait was cut. Keep the app visible during finishing.
+- **Walkthrough:** actual camera-on recording URL.
+- **Live app:** verified Vercel production URL.
+- **Public repository:** https://github.com/Huzyefahwasim/UGC-
 
-1:20–2:10 — Play the result with sound. Point out generated footage, exact caption beats, animated GIF and music. Download it and open the saved link. Explain the AI footage is illustrative; do not imply it records a real customer.
-
-2:10–2:35 — Expand the brief to show the action, setting, camera and lighting. Explain that free GPU quota is limited and the app has an explicit free-asset fallback.
-
-2:35–3:00 — Show the public GitHub repository, CAPTURE-TEST.md and incremental .agent-logs commits.
-
-Do not record secret keys. Provide the studio code to intended reviewers separately. Revisions consume new GPU time; do not promise unlimited free generation or Higgsfield-equivalent quality.
-
-Submission fields:
-
-- Walkthrough: the actual camera-on recording URL.
-- Live app: your Vercel production URL.
-- Public repository: https://github.com/Huzyefahwasim/UGC-
-
-Deployment and the camera-on recording remain the user's handoff tasks.
+Live deployment and camera-on recording remain outstanding.
